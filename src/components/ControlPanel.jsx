@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+
+const EMOJIS = ['😀','😂','😍','😎','😢','😡','👍','🎉','🔥','💯','😁','😘','🤔','😭','💀','🤡','👽','💩','✨','👀'];
 
 export default function ControlPanel({ 
   texts, 
@@ -11,6 +13,7 @@ export default function ControlPanel({
   onDownload,
   maxFontSize = 200
 }) {
+  const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
 
   return (
     <div className="flex-col gap-4 p-6 glass-panel" style={{ overflowY: 'auto' }}>
@@ -55,7 +58,7 @@ export default function ControlPanel({
               }}
               onClick={() => { if (!isSelected) onSelectText(item.id) }}
             >
-              <div className="flex gap-2">
+              <div className="flex gap-2" style={{ position: 'relative' }}>
                 <input 
                   type="text" 
                   className="input-control" 
@@ -64,12 +67,52 @@ export default function ControlPanel({
                   placeholder={`Text Layer ${index + 1}`}
                 />
                 <button 
+                  className="btn btn-icon" 
+                  onClick={(e) => { e.stopPropagation(); setShowEmojiPickerFor(showEmojiPickerFor === item.id ? null : item.id); }}
+                  title="Insert Emoji"
+                >
+                  😀
+                </button>
+                <button 
                   className="btn btn-icon btn-danger" 
                   onClick={(e) => { e.stopPropagation(); onDeleteText(item.id); }}
                   title="Delete Layer"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                 </button>
+                
+                {showEmojiPickerFor === item.id && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    zIndex: 10,
+                    background: 'var(--bg-color)',
+                    border: '1px solid var(--border-color)',
+                    padding: '0.5rem',
+                    borderRadius: '8px',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(5, 1fr)',
+                    gap: '0.2rem',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                    marginTop: '0.2rem'
+                  }}>
+                    {EMOJIS.map(emoji => (
+                      <button
+                        key={emoji}
+                        className="btn btn-icon"
+                        style={{ border: 'none', background: 'transparent', fontSize: '1.2rem' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUpdateText(item.id, { text: item.text + emoji });
+                          setShowEmojiPickerFor(null);
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {isSelected && (
