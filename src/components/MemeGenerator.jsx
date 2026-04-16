@@ -84,7 +84,8 @@ export default function MemeGenerator() {
 
     // Wait for state update to clear transformer, then export
     setTimeout(() => {
-      const uri = stageRef.current.toDataURL({ pixelRatio: 2 }); // High-res export
+      const exportScale = stageRef.current.nativeScale ? 1 / stageRef.current.nativeScale : 2;
+      const uri = stageRef.current.toDataURL({ pixelRatio: exportScale }); // Native res export
       const link = document.createElement('a');
       link.download = `meme-${Date.now()}.png`;
       link.href = uri;

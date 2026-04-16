@@ -68,16 +68,17 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange }) => {
 
 export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelectText, onUpdateText, stageRef }) {
   const [image] = useImage(imageUrl, 'anonymous');
-  const [stageSize, setStageSize] = useState({ width: 500, height: 500 });
+  const [containerSize, setContainerSize] = useState({ width: 500, height: 500 });
   const containerRef = useRef(null);
 
   // Resize canvas to fit container visually while maintaining logic
   useEffect(() => {
     const checkSize = () => {
       if (containerRef.current) {
-        const width = containerRef.current.offsetWidth;
-        const height = containerRef.current.offsetHeight;
-        setStageSize({ width, height });
+        setContainerSize({
+          width: containerRef.current.offsetWidth,
+          height: containerRef.current.offsetHeight
+        });
       }
     };
     checkSize();
@@ -93,25 +94,30 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
     }
   };
 
-  // Calculate image rendering size to fit canvas or cover
-  let imgWidth = stageSize.width;
-  let imgHeight = stageSize.height;
-  let imgX = 0;
-  let imgY = 0;
+  let scale = 1;
+  let stageWidth = containerSize.width;
+  let stageHeight = containerSize.height;
 
   if (image) {
-    const scale = Math.min(stageSize.width / image.width, stageSize.height / image.height);
-    imgWidth = image.width * scale;
-    imgHeight = image.height * scale;
-    imgX = (stageSize.width - imgWidth) / 2;
-    imgY = (stageSize.height - imgHeight) / 2;
+    scale = Math.min(containerSize.width / image.width, containerSize.height / image.height);
+    stageWidth = image.width * scale;
+    stageHeight = image.height * scale;
   }
+
+  // To allow perfectly native resolution export in MemeGenerator.jsx
+  useEffect(() => {
+    if (stageRef.current) {
+      stageRef.current.nativeScale = scale;
+    }
+  }, [scale, stageRef]);
 
   return (
     <div className="canvas-area glass-panel" ref={containerRef} style={{ width: '100%', height: '100%', minHeight: '400px' }}>
       <Stage
-        width={stageSize.width}
-        height={stageSize.height}
+        width={stageWidth}
+        height={stageHeight}
+        scaleX={scale}
+        scaleY={scale}
         onMouseDown={checkDeselect}
         onTouchStart={checkDeselect}
         ref={stageRef}
@@ -119,21 +125,23 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
       >
         <Layer>
           {/* White Background Default */}
-          <Rect
-            x={0}
-            y={0}
-            width={stageSize.width}
-            height={stageSize.height}
-            fill="#ffffff"
-            name="bg"
-          />
+          {!image && (
+            <Rect
+              x={0}
+              y={0}
+              width={stageWidth / scale}
+              height={stageHeight / scale}
+              fill="#ffffff"
+              name="bg"
+            />
+          )}
           {image && (
             <KonvaImage
               image={image}
-              x={imgX}
-              y={imgY}
-              width={imgWidth}
-              height={imgHeight}
+              x={0}
+              y={0}
+              width={image.width}
+              height={image.height}
               name="bg"
             />
           )}
