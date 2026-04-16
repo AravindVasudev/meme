@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Stage, Layer, Image as KonvaImage, Text, Transformer, Rect } from 'react-konva';
 import useImage from 'use-image';
 
-const TextNode = ({ shapeProps, isSelected, onSelect, onChange }) => {
+const TextNode = ({ shapeProps, isSelected, onSelect, onChange, canvasWidth, canvasHeight, scale }) => {
   const shapeRef = useRef();
   const trRef = useRef();
 
@@ -21,6 +21,28 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange }) => {
         ref={shapeRef}
         {...shapeProps}
         draggable
+        dragBoundFunc={(pos) => {
+          if (!shapeRef.current) return pos;
+          const node = shapeRef.current;
+          const boxWidth = node.width() * node.scaleX() * scale;
+          const boxHeight = node.height() * node.scaleY() * scale;
+
+          const maxStageWidth = canvasWidth * scale;
+          const maxStageHeight = canvasHeight * scale;
+
+          let newX = pos.x;
+          let newY = pos.y;
+
+          if (newX < 0) newX = 0;
+          if (newX > maxStageWidth - boxWidth) newX = maxStageWidth - boxWidth;
+          if (boxWidth > maxStageWidth) newX = 0;
+
+          if (newY < 0) newY = 0;
+          if (newY > maxStageHeight - boxHeight) newY = maxStageHeight - boxHeight;
+          if (boxHeight > maxStageHeight) newY = 0;
+
+          return { x: newX, y: newY };
+        }}
         onDragEnd={(e) => {
           onChange({
             ...shapeProps,
@@ -29,23 +51,30 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange }) => {
           });
         }}
         onTransformEnd={(e) => {
-          // transformer is changing scale of the node
-          // and NOT its width or height, but in text scaling font size is better
           const node = shapeRef.current;
           const scaleX = node.scaleX();
           const scaleY = node.scaleY();
 
-          // we will reset it back
           node.scaleX(1);
           node.scaleY(1);
-          
+
+          let newFontSize = shapeProps.fontSize;
+          let newWidth = Math.max(5, node.width() * scaleX);
+
+          // Detect if it was a proportional scale (corner) vs a side stretch (middle-left/right)
+          // middle-left/right keep scaleY identical (1) and only change scaleX
+          if (scaleX !== 1 && scaleY !== 1) {
+            newFontSize = Math.max(5, shapeProps.fontSize * scaleX);
+          } else if (scaleX === 1 && scaleY !== 1) {
+            newFontSize = Math.max(5, shapeProps.fontSize * scaleY);
+          }
+
           onChange({
             ...shapeProps,
             x: node.x(),
             y: node.y(),
-            // set minimal value
-            fontSize: Math.max(5, shapeProps.fontSize * scaleX),
-            width: Math.max(5, node.width() * scaleX),
+            fontSize: newFontSize,
+            width: newWidth,
           });
         }}
       />
@@ -53,11 +82,25 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange }) => {
         <Transformer
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
-            // limit resize
-            if (newBox.width < 5 || newBox.height < 5) {
-              return oldBox;
+            const maxW = canvasWidth * scale;
+            const maxH = canvasHeight * scale;
+
+            if (newBox.width < 5 || newBox.height < 5) return oldBox;
+
+            // If completely inside, return it
+            if (newBox.x >= 0 && newBox.y >= 0 && newBox.x + newBox.width <= maxW && newBox.y + newBox.height <= maxH) {
+              return newBox;
             }
-            return newBox;
+
+            // Clamp newBox instead of rigidly rejecting to prevent permanent freezing
+            let res = { ...newBox };
+            if (res.x < 0) { res.width = res.width + res.x; res.x = 0; }
+            if (res.y < 0) { res.height = res.height + res.y; res.y = 0; }
+            if (res.x + res.width > maxW) { res.width = maxW - res.x; }
+            if (res.y + res.height > maxH) { res.height = maxH - res.y; }
+
+            if (res.width < 5 || res.height < 5) return oldBox;
+            return res;
           }}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right']}
         />
@@ -167,6 +210,8 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
           )}
 
           {texts.map((text, i) => {
+            const currentWidth = image ? image.width : DEFAULT_WIDTH;
+            const currentHeight = image ? image.height : DEFAULT_HEIGHT;
             return (
               <TextNode
                 key={text.id}
@@ -178,6 +223,9 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
                 onChange={(newAttrs) => {
                   onUpdateText(text.id, newAttrs);
                 }}
+                canvasWidth={currentWidth}
+                canvasHeight={currentHeight}
+                scale={scale}
               />
             );
           })}

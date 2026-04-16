@@ -8,7 +8,8 @@ export default function ControlPanel({
   onAddText, 
   onUpdateText, 
   onDeleteText,
-  onDownload 
+  onDownload,
+  maxFontSize = 200
 }) {
 
   return (
@@ -122,7 +123,7 @@ export default function ControlPanel({
                       <input 
                         type="range" 
                         min="10" 
-                        max="200" 
+                        max={maxFontSize} 
                         value={item.fontSize} 
                         onChange={(e) => onUpdateText(item.id, { fontSize: Number(e.target.value) })}
                       />
@@ -130,12 +131,12 @@ export default function ControlPanel({
 
                     <div>
                       <div className="flex justify-between">
-                        <label className="label">Outline Width [{item.strokeWidth}px]</label>
+                        <label className="label">Outline Width [{Math.round(item.strokeWidth)}px]</label>
                       </div>
                       <input 
                         type="range" 
                         min="0" 
-                        max="10" 
+                        max={Math.max(10, Math.floor(maxFontSize * 0.1))} 
                         value={item.strokeWidth} 
                         onChange={(e) => onUpdateText(item.id, { strokeWidth: Number(e.target.value) })}
                       />

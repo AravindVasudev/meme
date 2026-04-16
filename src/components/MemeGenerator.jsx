@@ -40,21 +40,23 @@ export default function MemeGenerator() {
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
   const [texts, setTexts] = useState(INITIAL_TEXTS);
   const [selectedTextId, setSelectedTextId] = useState(null);
+  const [canvasDim, setCanvasDim] = useState({ width: 600, height: 400 });
   const stageRef = useRef(null);
 
   // When adding text, place it in the center.
   const handleAddText = () => {
+    const defaultFontSize = Math.max(10, Math.floor(canvasDim.height * 0.1));
     const newText = {
       id: uuidv4(),
       text: 'NEW TEXT',
       x: 0,
-      y: 180,
-      width: 600,
+      y: canvasDim.height / 2 - defaultFontSize / 2,
+      width: canvasDim.width,
       align: 'center',
-      fontSize: 40,
+      fontSize: defaultFontSize,
       fill: '#ffffff',
       stroke: '#000000',
-      strokeWidth: 2,
+      strokeWidth: Math.max(1, Math.floor(canvasDim.height * 0.005)),
       fontStyle: 'normal',
       opacity: 1,
       fontFamily: 'Impact, Arial',
@@ -76,7 +78,50 @@ export default function MemeGenerator() {
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        setBackgroundImageUrl(event.target.result);
+        const url = event.target.result;
+        
+        const img = new Image();
+        img.onload = () => {
+          const newWidth = img.width;
+          const newHeight = img.height;
+          
+          setCanvasDim((prevDim) => {
+            const ratioX = newWidth / prevDim.width;
+            const ratioY = newHeight / prevDim.height;
+            const scaleRatio = Math.min(ratioX, ratioY);
+            
+            setTexts(prev => prev.map(t => {
+              let nW = newWidth;
+              let nX = 0;
+              // Map vertical coordinate via relative percentage
+              let yPercent = prevDim.height > 0 ? t.y / prevDim.height : 0.5;
+              let nY = yPercent * newHeight;
+              let nFontSize = t.fontSize * scaleRatio;
+              
+              if (nY < 0) nY = 0;
+              // Guarantee it doesn't fall off the visual bottom frame by padding against estimated font height
+              const padding = nFontSize * 1.5;
+              if (nY > newHeight - padding) {
+                 nY = Math.max(0, newHeight - padding);
+              }
+
+              return {
+                ...t,
+                x: nX,
+                y: nY,
+                width: nW,
+                fontSize: nFontSize,
+                strokeWidth: Math.max(1, t.strokeWidth * scaleRatio),
+                align: 'center'
+              };
+            }));
+            
+            return { width: newWidth, height: newHeight };
+          });
+          
+          setBackgroundImageUrl(url);
+        };
+        img.src = url;
       };
       reader.readAsDataURL(file);
     }
@@ -126,6 +171,7 @@ export default function MemeGenerator() {
         onUpdateText={handleUpdateText}
         onDeleteText={handleDeleteText}
         onDownload={handleDownload}
+        maxFontSize={Math.max(200, Math.floor(canvasDim.height / 2))}
       />
     </div>
   );
