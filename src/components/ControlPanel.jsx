@@ -16,7 +16,7 @@ export default function ControlPanel({
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
 
   return (
-    <div className="flex-col gap-4 p-6 glass-panel" style={{ overflowY: 'auto' }}>
+    <div className="control-panel flex-col gap-4 p-6 glass-panel">
       
       {/* Top Actions */}
       <div className="flex flex-col gap-4">

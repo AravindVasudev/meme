@@ -164,7 +164,7 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
     <div 
       className="canvas-area glass-panel" 
       ref={containerRef} 
-      style={{ width: '100%', height: '100%', minHeight: '400px' }}
+      style={{ width: '100%', height: '100%' }}
       onDragOver={(e) => {
         e.preventDefault();
       }}
