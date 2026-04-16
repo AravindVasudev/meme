@@ -94,6 +94,8 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
     }
   };
 
+  const DEFAULT_WIDTH = 600;
+  const DEFAULT_HEIGHT = 400;
   let scale = 1;
   let stageWidth = containerSize.width;
   let stageHeight = containerSize.height;
@@ -102,6 +104,10 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
     scale = Math.min(containerSize.width / image.width, containerSize.height / image.height);
     stageWidth = image.width * scale;
     stageHeight = image.height * scale;
+  } else if (containerSize.width > 0 && containerSize.height > 0) {
+    scale = Math.min(containerSize.width / DEFAULT_WIDTH, containerSize.height / DEFAULT_HEIGHT) * 0.95;
+    stageWidth = DEFAULT_WIDTH * scale;
+    stageHeight = DEFAULT_HEIGHT * scale;
   }
 
   // To allow perfectly native resolution export in MemeGenerator.jsx
@@ -135,17 +141,17 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
         onMouseDown={checkDeselect}
         onTouchStart={checkDeselect}
         ref={stageRef}
-        style={{ cursor: 'crosshair', backgroundColor: '#ffffff' }}
+        style={{ cursor: 'crosshair' }}
       >
         <Layer>
-          {/* White Background Default */}
+          {/* Grey Background Default */}
           {!image && (
             <Rect
               x={0}
               y={0}
-              width={stageWidth / scale}
-              height={stageHeight / scale}
-              fill="#ffffff"
+              width={DEFAULT_WIDTH}
+              height={DEFAULT_HEIGHT}
+              fill="#808080"
               name="bg"
             />
           )}
