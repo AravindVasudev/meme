@@ -66,7 +66,7 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange }) => {
   );
 };
 
-export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelectText, onUpdateText, stageRef }) {
+export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelectText, onUpdateText, stageRef, onImageDrop }) {
   const [image] = useImage(imageUrl, 'anonymous');
   const [containerSize, setContainerSize] = useState({ width: 500, height: 500 });
   const containerRef = useRef(null);
@@ -112,7 +112,21 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
   }, [scale, stageRef]);
 
   return (
-    <div className="canvas-area glass-panel" ref={containerRef} style={{ width: '100%', height: '100%', minHeight: '400px' }}>
+    <div 
+      className="canvas-area glass-panel" 
+      ref={containerRef} 
+      style={{ width: '100%', height: '100%', minHeight: '400px' }}
+      onDragOver={(e) => {
+        e.preventDefault();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const file = e.dataTransfer?.files[0];
+        if (file && onImageDrop) {
+          onImageDrop(file);
+        }
+      }}
+    >
       <Stage
         width={stageWidth}
         height={stageHeight}

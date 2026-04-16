@@ -66,15 +66,19 @@ export default function MemeGenerator() {
     if (selectedTextId === id) setSelectedTextId(null);
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+  const processImageFile = (file) => {
+    if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (event) => {
         setBackgroundImageUrl(event.target.result);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    processImageFile(file);
   };
 
   const handleDownload = () => {
@@ -104,6 +108,7 @@ export default function MemeGenerator() {
         onSelectText={setSelectedTextId}
         onUpdateText={handleUpdateText}
         stageRef={stageRef}
+        onImageDrop={processImageFile}
       />
       
       <ControlPanel 
