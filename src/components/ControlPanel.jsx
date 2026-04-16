@@ -73,6 +73,23 @@ export default function ControlPanel({
 
               {isSelected && (
                 <div className="flex-col gap-4" style={{ marginTop: '0.5rem' }}>
+
+                  {/* Font Type */}
+                  <div className="flex-col w-full">
+                    <label className="label">Font Family</label>
+                    <select 
+                      className="input-control" 
+                      value={item.fontFamily || 'Impact, Arial'} 
+                      onChange={(e) => onUpdateText(item.id, { fontFamily: e.target.value })}
+                    >
+                      <option value="Impact, Arial">Impact</option>
+                      <option value="Arial, sans-serif">Arial</option>
+                      <option value="Times New Roman, serif">Times New Roman</option>
+                      <option value="Courier New, monospace">Courier New</option>
+                      <option value="Comic Sans MS, cursive">Comic Sans MS</option>
+                      <option value="Verdana, sans-serif">Verdana</option>
+                    </select>
+                  </div>
                   
                   {/* Colors */}
                   <div className="flex gap-4">
