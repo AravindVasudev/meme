@@ -41,9 +41,16 @@ export default function ControlPanel({
   // Filter
   activeFilter,
   onFilterChange,
+  backgroundColor,
+  onBackgroundColorChange,
+  // Resolution
+  canvasDim,
+  onCanvasDimChange,
+  hasBackgroundImage,
 }) {
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showResolution, setShowResolution] = useState(false);
   const [activeAdvancedTool, setActiveAdvancedTool] = useState(null);
   
   // Space/padding state
@@ -367,9 +374,82 @@ export default function ControlPanel({
             style={{ padding: '0.4rem' }}
           />
         </div>
+        <div>
+          <label className="label">Background Color</label>
+          <div className="flex items-center gap-3">
+            <input 
+              type="color" 
+              value={backgroundColor} 
+              onChange={(e) => onBackgroundColorChange(e.target.value)}
+              className="w-full h-10 cursor-pointer"
+              title="Change canvas background color"
+            />
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+              {backgroundColor.toUpperCase()}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <hr style={{ borderColor: 'var(--border-color)', margin: '1rem 0' }} />
+      {!hasBackgroundImage && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <button 
+            className={`btn w-full ${showResolution ? 'btn-primary' : ''}`}
+            onClick={() => setShowResolution(!showResolution)}
+            style={{ justifyContent: 'space-between', padding: '0.75rem 1rem' }}
+          >
+            <span className="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <path d="M7 3v18"></path>
+                <path d="M3 7h18"></path>
+                <path d="M17 3v18"></path>
+                <path d="M3 17h18"></path>
+              </svg>
+              Canvas Resolution
+            </span>
+            <svg 
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+              style={{ transform: showResolution ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}
+            >
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+
+          {showResolution && (
+            <div className="advanced-tool-panel" style={{ marginTop: '0.5rem' }}>
+              <div className="flex gap-2 items-center" style={{ marginBottom: '1rem' }}>
+                <div className="flex-col w-full">
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Width</span>
+                  <input 
+                    type="number" 
+                    className="input-control" 
+                    value={canvasDim.width} 
+                    onChange={(e) => onCanvasDimChange(prev => ({ ...prev, width: Number(e.target.value) }))}
+                  />
+                </div>
+                <span style={{ marginTop: '1.2rem', color: 'var(--text-secondary)' }}>×</span>
+                <div className="flex-col w-full">
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Height</span>
+                  <input 
+                    type="number" 
+                    className="input-control" 
+                    value={canvasDim.height} 
+                    onChange={(e) => onCanvasDimChange(prev => ({ ...prev, height: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-2 flex-wrap">
+                <button className="btn btn-sm" onClick={() => onCanvasDimChange({ width: 600, height: 600 })}>1:1 Square</button>
+                <button className="btn btn-sm" onClick={() => onCanvasDimChange({ width: 600, height: 900 })}>2:3 Story</button>
+                <button className="btn btn-sm" onClick={() => onCanvasDimChange({ width: 800, height: 600 })}>4:3 Classic</button>
+                <button className="btn btn-sm" onClick={() => onCanvasDimChange({ width: 900, height: 600 })}>3:2 Photo</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Unified Layers Section */}
       <div className="flex justify-between items-center">

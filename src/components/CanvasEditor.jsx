@@ -316,7 +316,7 @@ export default function CanvasEditor({
   insertedImages = [], selectedInsertedImageId, onUpdateInsertedImage,
   layerOrder = [],
   drawLines = [], onDrawLinesChange, isDrawingMode, brushSize, brushColor,
-  activeFilter = 'none',
+  activeFilter = 'none', backgroundColor = '#2d2d2d', canvasDim = { width: 600, height: 400 },
 }) {
   const [image] = useImage(imageUrl, 'anonymous');
   const [containerSize, setContainerSize] = useState({ width: 500, height: 500 });
@@ -350,8 +350,8 @@ export default function CanvasEditor({
     }
   };
 
-  const DEFAULT_WIDTH = 600;
-  const DEFAULT_HEIGHT = 400;
+  const DEFAULT_WIDTH = canvasDim.width;
+  const DEFAULT_HEIGHT = canvasDim.height;
   let scale = 1;
   let stageWidth = containerSize.width;
   let stageHeight = containerSize.height;
@@ -392,10 +392,14 @@ export default function CanvasEditor({
         style={{ cursor: isCropping || isDrawingMode ? 'crosshair' : 'default' }}
       >
         <Layer>
-          {/* Background */}
-          {!image && (
-            <Rect x={0} y={0} width={DEFAULT_WIDTH} height={DEFAULT_HEIGHT} fill="#808080" name="bg" />
-          )}
+          {/* Background Layer (Always visible, behind the image) */}
+          <Rect 
+            x={0} y={0} 
+            width={currentWidth} height={currentHeight} 
+            fill={backgroundColor} 
+            name="bg" 
+          />
+          
           {image && (
             <KonvaImage
               ref={bgImageRef}

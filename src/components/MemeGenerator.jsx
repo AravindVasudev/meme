@@ -33,6 +33,9 @@ export default function MemeGenerator() {
   // Filter state
   const [activeFilter, setActiveFilter] = useState('none');
 
+  // Background color state
+  const [backgroundColor, setBackgroundColor] = useState('#2d2d2d');
+
   // When adding text, place it in the center.
   const handleAddText = () => {
     const defaultFontSize = Math.max(10, Math.floor(canvasDim.height * 0.1));
@@ -469,6 +472,8 @@ export default function MemeGenerator() {
         brushColor={brushColor}
         // Filter
         activeFilter={activeFilter}
+        backgroundColor={backgroundColor}
+        canvasDim={canvasDim}
       />
       
       <ControlPanel 
@@ -481,6 +486,13 @@ export default function MemeGenerator() {
         onDeleteText={handleDeleteText}
         onDownload={handleDownload}
         maxFontSize={Math.max(200, Math.floor(canvasDim.height / 2))}
+        // Background color
+        backgroundColor={backgroundColor}
+        onBackgroundColorChange={setBackgroundColor}
+        // Resolution
+        canvasDim={canvasDim}
+        onCanvasDimChange={setCanvasDim}
+        hasBackgroundImage={!!backgroundImageUrl}
         // Advanced
         onCropStart={handleCropStart}
         onCropApply={handleCropApply}
