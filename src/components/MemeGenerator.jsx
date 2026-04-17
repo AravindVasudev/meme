@@ -55,6 +55,15 @@ export default function MemeGenerator() {
   // Unified layer ordering
   const [layerOrder, setLayerOrder] = useState(INITIAL_LAYER_ORDER);
 
+  // Draw tool state
+  const [drawLines, setDrawLines] = useState([]);
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [brushSize, setBrushSize] = useState(5);
+  const [brushColor, setBrushColor] = useState('#ff0000');
+
+  // Filter state
+  const [activeFilter, setActiveFilter] = useState('none');
+
   // When adding text, place it in the center.
   const handleAddText = () => {
     const defaultFontSize = Math.max(10, Math.floor(canvasDim.height * 0.1));
@@ -149,9 +158,10 @@ export default function MemeGenerator() {
 
   const handleDownload = () => {
     if (!stageRef.current) return;
-    // Deselect text so transformer handles are not in the screenshot
+    // Deselect everything so transformer handles are not in the screenshot
     setSelectedTextId(null);
     setSelectedInsertedImageId(null);
+    setIsDrawingMode(false);
 
     // Wait for state update to clear transformer, then export
     setTimeout(() => {
@@ -193,6 +203,12 @@ export default function MemeGenerator() {
       y: img.y - cropRect.y,
     })));
 
+    // Adjust draw lines
+    setDrawLines(prev => prev.map(line => ({
+      ...line,
+      points: line.points.map((val, i) => i % 2 === 0 ? val - cropRect.x : val - cropRect.y),
+    })));
+
     // If there's a background image, re-render the cropped portion
     if (backgroundImageUrl) {
       const img = new window.Image();
@@ -224,7 +240,7 @@ export default function MemeGenerator() {
     const paddingHeight = Math.round(canvasDim.height * (percent / 100));
     const newWidth = canvasDim.width;
     let newHeight = canvasDim.height;
-    let yOffset = 0; // How much to shift existing content down
+    let yOffset = 0;
 
     if (position === 'top') {
       newHeight += paddingHeight;
@@ -237,21 +253,15 @@ export default function MemeGenerator() {
       yOffset = paddingHeight;
     }
 
-    // Shift texts
     if (yOffset > 0) {
-      setTexts(prev => prev.map(t => ({
-        ...t,
-        y: t.y + yOffset,
-      })));
-
-      // Shift inserted images
-      setInsertedImages(prev => prev.map(img => ({
-        ...img,
-        y: img.y + yOffset,
+      setTexts(prev => prev.map(t => ({ ...t, y: t.y + yOffset })));
+      setInsertedImages(prev => prev.map(img => ({ ...img, y: img.y + yOffset })));
+      setDrawLines(prev => prev.map(line => ({
+        ...line,
+        points: line.points.map((val, i) => i % 2 === 1 ? val + yOffset : val),
       })));
     }
 
-    // If there's a background image, compose a new image with padding
     if (backgroundImageUrl) {
       const img = new window.Image();
       img.onload = () => {
@@ -267,7 +277,6 @@ export default function MemeGenerator() {
       };
       img.src = backgroundImageUrl;
     } else {
-      // No background — just change dimensions (the canvas editor will handle the bg rect)
       setCanvasDim({ width: newWidth, height: newHeight });
     }
   };
@@ -281,7 +290,6 @@ export default function MemeGenerator() {
         const url = event.target.result;
         const img = new window.Image();
         img.onload = () => {
-          // Scale inserted image to fit within canvas at max 50% of canvas size
           const maxW = canvasDim.width * 0.5;
           const maxH = canvasDim.height * 0.5;
           const scale = Math.min(maxW / img.width, maxH / img.height, 1);
@@ -307,7 +315,6 @@ export default function MemeGenerator() {
       };
       reader.readAsDataURL(file);
     }
-    // Reset the input so the same file can be re-selected
     e.target.value = '';
   };
 
@@ -322,7 +329,6 @@ export default function MemeGenerator() {
   };
 
   // === LAYER REORDERING ===
-  // direction: 'up' = higher z-order (render on top), 'down' = lower z-order (render behind)
   const handleMoveLayer = (id, direction) => {
     setLayerOrder(prev => {
       const idx = prev.findIndex(l => l.id === id);
@@ -335,7 +341,6 @@ export default function MemeGenerator() {
     });
   };
 
-  // Helper to select any layer by id
   const handleSelectLayer = (id, type) => {
     if (type === 'text') {
       setSelectedTextId(id);
@@ -344,6 +349,63 @@ export default function MemeGenerator() {
       setSelectedInsertedImageId(id);
       setSelectedTextId(null);
     }
+  };
+
+  // === ROTATE 90° CW ===
+  const handleRotate = () => {
+    const oldWidth = canvasDim.width;
+    const oldHeight = canvasDim.height;
+    const newWidth = oldHeight;
+    const newHeight = oldWidth;
+
+    if (backgroundImageUrl) {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.height;
+        canvas.height = img.width;
+        const ctx = canvas.getContext('2d');
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        setBackgroundImageUrl(canvas.toDataURL('image/png'));
+        setCanvasDim({ width: newWidth, height: newHeight });
+      };
+      img.src = backgroundImageUrl;
+    } else {
+      setCanvasDim({ width: newWidth, height: newHeight });
+    }
+
+    // Remap text positions: 90° CW → (x,y) → roughly (oldH-y, x)
+    setTexts(prev => prev.map(t => ({
+      ...t,
+      x: 0,
+      y: Math.min(Math.max(0, t.x), newHeight - t.fontSize * 1.5),
+      width: newWidth,
+      align: 'center',
+    })));
+
+    // Remap inserted images
+    setInsertedImages(prev => prev.map(img => ({
+      ...img,
+      x: oldHeight - img.y - img.height,
+      y: img.x,
+    })));
+
+    // Remap draw line points: (x,y) → (oldH-y, x)
+    setDrawLines(prev => prev.map(line => {
+      const newPoints = [];
+      for (let i = 0; i < line.points.length; i += 2) {
+        newPoints.push(oldHeight - line.points[i + 1]); // new x
+        newPoints.push(line.points[i]);                   // new y
+      }
+      return { ...line, points: newPoints };
+    }));
+  };
+
+  // === CLEAR DRAW LINES ===
+  const handleClearDrawLines = () => {
+    setDrawLines([]);
   };
 
   return (
@@ -366,6 +428,14 @@ export default function MemeGenerator() {
         onUpdateInsertedImage={handleUpdateInsertedImage}
         // Layer ordering
         layerOrder={layerOrder}
+        // Draw
+        drawLines={drawLines}
+        onDrawLinesChange={setDrawLines}
+        isDrawingMode={isDrawingMode}
+        brushSize={brushSize}
+        brushColor={brushColor}
+        // Filter
+        activeFilter={activeFilter}
       />
       
       <ControlPanel 
@@ -393,6 +463,19 @@ export default function MemeGenerator() {
         layerOrder={layerOrder}
         onMoveLayer={handleMoveLayer}
         onSelectLayer={handleSelectLayer}
+        // Draw
+        isDrawingMode={isDrawingMode}
+        onSetDrawingMode={setIsDrawingMode}
+        brushSize={brushSize}
+        onBrushSizeChange={setBrushSize}
+        brushColor={brushColor}
+        onBrushColorChange={setBrushColor}
+        onClearDrawLines={handleClearDrawLines}
+        // Rotate
+        onRotate={handleRotate}
+        // Filter
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
       />
     </div>
   );
