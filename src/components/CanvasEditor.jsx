@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Stage, Layer, Image as KonvaImage, Text, Transformer, Rect } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Text, Transformer, Rect, Group } from 'react-konva';
 import useImage from 'use-image';
 
 const TextNode = ({ shapeProps, isSelected, onSelect, onChange, canvasWidth, canvasHeight, scale }) => {
@@ -109,7 +109,210 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange, canvasWidth, can
   );
 };
 
-export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelectText, onUpdateText, stageRef, onImageDrop }) {
+// Inserted Image Node (draggable + resizable)
+const InsertedImageNode = ({ imageData, isSelected, onSelect, onChange, canvasWidth, canvasHeight, scale }) => {
+  const shapeRef = useRef();
+  const trRef = useRef();
+  const [img] = useImage(imageData.src, 'anonymous');
+
+  useEffect(() => {
+    if (isSelected && trRef.current && shapeRef.current) {
+      trRef.current.nodes([shapeRef.current]);
+      trRef.current.getLayer().batchDraw();
+    }
+  }, [isSelected]);
+
+  if (!img) return null;
+
+  return (
+    <React.Fragment>
+      <KonvaImage
+        image={img}
+        x={imageData.x}
+        y={imageData.y}
+        width={imageData.width}
+        height={imageData.height}
+        rotation={imageData.rotation || 0}
+        draggable
+        ref={shapeRef}
+        onClick={onSelect}
+        onTap={onSelect}
+        onDragEnd={(e) => {
+          onChange({
+            x: e.target.x(),
+            y: e.target.y(),
+          });
+        }}
+        onTransformEnd={(e) => {
+          const node = shapeRef.current;
+          const scaleX = node.scaleX();
+          const scaleY = node.scaleY();
+          node.scaleX(1);
+          node.scaleY(1);
+          onChange({
+            x: node.x(),
+            y: node.y(),
+            width: Math.max(5, node.width() * scaleX),
+            height: Math.max(5, node.height() * scaleY),
+            rotation: node.rotation(),
+          });
+        }}
+      />
+      {isSelected && (
+        <Transformer
+          ref={trRef}
+          enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']}
+          boundBoxFunc={(oldBox, newBox) => {
+            if (newBox.width < 5 || newBox.height < 5) return oldBox;
+            return newBox;
+          }}
+        />
+      )}
+    </React.Fragment>
+  );
+};
+
+// Crop overlay component
+const CropOverlay = ({ canvasWidth, canvasHeight, cropRect, onCropRectChange, scale }) => {
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [startPos, setStartPos] = useState(null);
+  const cropRectRef = useRef();
+  const trRef = useRef();
+
+  // Attach transformer only after drawing is finished and crop rect is finalized
+  useEffect(() => {
+    if (cropRect && !isDrawing && trRef.current && cropRectRef.current) {
+      trRef.current.nodes([cropRectRef.current]);
+      trRef.current.getLayer().batchDraw();
+    }
+  }, [cropRect, isDrawing]);
+
+  const getCanvasPos = (e) => {
+    const stage = e.target.getStage();
+    const pos = stage.getPointerPosition();
+    return {
+      x: Math.max(0, Math.min(pos.x / scale, canvasWidth)),
+      y: Math.max(0, Math.min(pos.y / scale, canvasHeight)),
+    };
+  };
+
+  const handleMouseDown = (e) => {
+    // Don't start a new draw if clicking on the crop rect itself (let transformer handle it)
+    if (e.target.name && e.target.name() === 'cropSelection') return;
+    const pos = getCanvasPos(e);
+    setIsDrawing(true);
+    setStartPos(pos);
+    onCropRectChange(null);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDrawing || !startPos) return;
+    const pos = getCanvasPos(e);
+    onCropRectChange({
+      x: Math.min(startPos.x, pos.x),
+      y: Math.min(startPos.y, pos.y),
+      width: Math.abs(pos.x - startPos.x),
+      height: Math.abs(pos.y - startPos.y),
+    });
+  };
+
+  const handleMouseUp = () => {
+    if (isDrawing) {
+      setIsDrawing(false);
+      setStartPos(null);
+    }
+  };
+
+  return (
+    <React.Fragment>
+      {/* Visual-only dark overlay (no interaction) */}
+      <Rect
+        x={0}
+        y={0}
+        width={canvasWidth}
+        height={canvasHeight}
+        fill="rgba(0,0,0,0.4)"
+        listening={false}
+      />
+
+      {/* Interaction surface for drawing crop selection — stays listening throughout the drag */}
+      <Rect
+        x={0}
+        y={0}
+        width={canvasWidth}
+        height={canvasHeight}
+        fill="transparent"
+        listening={!cropRect || isDrawing}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onTouchStart={handleMouseDown}
+        onTouchMove={handleMouseMove}
+        onTouchEnd={handleMouseUp}
+      />
+
+      {/* Crop selection rectangle */}
+      {cropRect && (
+        <React.Fragment>
+          <Rect
+            ref={cropRectRef}
+            name="cropSelection"
+            x={cropRect.x}
+            y={cropRect.y}
+            width={cropRect.width}
+            height={cropRect.height}
+            fill="rgba(139, 92, 246, 0.15)"
+            stroke="#8b5cf6"
+            strokeWidth={2 / scale}
+            dash={[8 / scale, 4 / scale]}
+            draggable={!isDrawing}
+            listening={!isDrawing}
+            onDragEnd={(e) => {
+              const node = e.target;
+              onCropRectChange({
+                ...cropRect,
+                x: Math.max(0, Math.min(node.x(), canvasWidth - cropRect.width)),
+                y: Math.max(0, Math.min(node.y(), canvasHeight - cropRect.height)),
+              });
+            }}
+            onTransformEnd={(e) => {
+              const node = cropRectRef.current;
+              const scaleX = node.scaleX();
+              const scaleY = node.scaleY();
+              node.scaleX(1);
+              node.scaleY(1);
+              onCropRectChange({
+                x: Math.max(0, node.x()),
+                y: Math.max(0, node.y()),
+                width: Math.min(Math.max(5, node.width() * scaleX), canvasWidth - Math.max(0, node.x())),
+                height: Math.min(Math.max(5, node.height() * scaleY), canvasHeight - Math.max(0, node.y())),
+              });
+            }}
+          />
+          {/* Only show transformer handles after drawing is complete */}
+          {!isDrawing && (
+            <Transformer
+              ref={trRef}
+              rotateEnabled={false}
+              enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']}
+              boundBoxFunc={(oldBox, newBox) => {
+                if (newBox.width < 5 || newBox.height < 5) return oldBox;
+                return newBox;
+              }}
+            />
+          )}
+        </React.Fragment>
+      )}
+    </React.Fragment>
+  );
+};
+
+export default function CanvasEditor({ 
+  imageUrl, texts, selectedTextId, onSelectText, onUpdateText, stageRef, onImageDrop,
+  // Advanced props
+  isCropping, cropRect, onCropRectChange,
+  insertedImages = [], selectedInsertedImageId, onSelectInsertedImage, onUpdateInsertedImage, onDeleteInsertedImage,
+}) {
   const [image] = useImage(imageUrl, 'anonymous');
   const [containerSize, setContainerSize] = useState({ width: 500, height: 500 });
   const containerRef = useRef(null);
@@ -134,6 +337,7 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
     const clickedOnEmpty = e.target === e.target.getStage() || e.target.getName() === 'bg';
     if (clickedOnEmpty) {
       onSelectText(null);
+      if (onSelectInsertedImage) onSelectInsertedImage(null);
     }
   };
 
@@ -181,10 +385,10 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
         height={stageHeight}
         scaleX={scale}
         scaleY={scale}
-        onMouseDown={checkDeselect}
-        onTouchStart={checkDeselect}
+        onMouseDown={!isCropping ? checkDeselect : undefined}
+        onTouchStart={!isCropping ? checkDeselect : undefined}
         ref={stageRef}
-        style={{ cursor: 'crosshair' }}
+        style={{ cursor: isCropping ? 'crosshair' : 'default' }}
       >
         <Layer>
           {/* Grey Background Default */}
@@ -209,6 +413,29 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
             />
           )}
 
+          {/* Inserted image layers */}
+          {insertedImages.map((imgData) => {
+            const currentWidth = image ? image.width : DEFAULT_WIDTH;
+            const currentHeight = image ? image.height : DEFAULT_HEIGHT;
+            return (
+              <InsertedImageNode
+                key={imgData.id}
+                imageData={imgData}
+                isSelected={imgData.id === selectedInsertedImageId}
+                onSelect={() => {
+                  if (onSelectInsertedImage) onSelectInsertedImage(imgData.id);
+                  onSelectText(null);
+                }}
+                onChange={(newAttrs) => {
+                  if (onUpdateInsertedImage) onUpdateInsertedImage(imgData.id, newAttrs);
+                }}
+                canvasWidth={currentWidth}
+                canvasHeight={currentHeight}
+                scale={scale}
+              />
+            );
+          })}
+
           {texts.map((text, i) => {
             const currentWidth = image ? image.width : DEFAULT_WIDTH;
             const currentHeight = image ? image.height : DEFAULT_HEIGHT;
@@ -219,6 +446,7 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
                 isSelected={text.id === selectedTextId}
                 onSelect={() => {
                   onSelectText(text.id);
+                  if (onSelectInsertedImage) onSelectInsertedImage(null);
                 }}
                 onChange={(newAttrs) => {
                   onUpdateText(text.id, newAttrs);
@@ -229,6 +457,17 @@ export default function CanvasEditor({ imageUrl, texts, selectedTextId, onSelect
               />
             );
           })}
+
+          {/* Crop overlay */}
+          {isCropping && (
+            <CropOverlay
+              canvasWidth={image ? image.width : DEFAULT_WIDTH}
+              canvasHeight={image ? image.height : DEFAULT_HEIGHT}
+              cropRect={cropRect}
+              onCropRectChange={onCropRectChange}
+              scale={scale}
+            />
+          )}
         </Layer>
       </Stage>
     </div>

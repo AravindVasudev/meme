@@ -225,6 +225,37 @@ input[type="range"]::-webkit-slider-thumb:hover {
   overflow-y: auto;
 }
 
+/* Advanced Panel */
+.advanced-panel {
+  animation: advancedSlideIn 0.3s ease;
+}
+
+@keyframes advancedSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.advanced-tool-btn {
+  font-size: 0.85rem;
+  padding: 0.6rem 0.5rem;
+  flex-direction: column;
+  gap: 0.3rem !important;
+}
+
+.advanced-tool-panel {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  border-radius: var(--rounded-md);
+  animation: toolPanelIn 0.25s ease;
+}
+
+@keyframes toolPanelIn {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 400px; }
+}
+
 /* Fallback for responsive */
 @media (max-width: 900px) {
   body {

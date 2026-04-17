@@ -11,9 +11,41 @@ export default function ControlPanel({
   onUpdateText, 
   onDeleteText,
   onDownload,
-  maxFontSize = 200
+  maxFontSize = 200,
+  // Advanced features
+  onCropStart,
+  onCropApply,
+  onCropCancel,
+  isCropping,
+  onAddSpace,
+  onInsertImage,
 }) {
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [activeAdvancedTool, setActiveAdvancedTool] = useState(null); // 'crop' | 'space' | 'insert'
+  
+  // Space/padding state
+  const [spacePosition, setSpacePosition] = useState('bottom'); // 'top' | 'bottom' | 'both'
+  const [spacePercent, setSpacePercent] = useState(20);
+  const [spaceColor, setSpaceColor] = useState('#000000');
+
+  const handleToolToggle = (tool) => {
+    if (activeAdvancedTool === tool) {
+      setActiveAdvancedTool(null);
+      if (tool === 'crop' && isCropping) {
+        onCropCancel();
+      }
+    } else {
+      // Cancel crop if switching away
+      if (isCropping) {
+        onCropCancel();
+      }
+      setActiveAdvancedTool(tool);
+      if (tool === 'crop') {
+        onCropStart();
+      }
+    }
+  };
 
   return (
     <div className="control-panel flex-col gap-4 p-6 glass-panel">
@@ -232,6 +264,177 @@ export default function ControlPanel({
         {texts.length === 0 && (
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem' }}>
             No text layers. Add one above!
+          </div>
+        )}
+      </div>
+
+      <hr style={{ borderColor: 'var(--border-color)', margin: '1rem 0' }} />
+
+      {/* Advanced Section */}
+      <div>
+        <button 
+          className={`btn w-full ${showAdvanced ? 'btn-primary' : ''}`}
+          onClick={() => {
+            setShowAdvanced(!showAdvanced);
+            if (showAdvanced) {
+              // Closing advanced — cancel any active tool
+              if (isCropping) onCropCancel();
+              setActiveAdvancedTool(null);
+            }
+          }}
+          style={{ justifyContent: 'space-between', padding: '0.75rem 1rem' }}
+        >
+          <span className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            Advanced
+          </span>
+          <svg 
+            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+            style={{ transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        {showAdvanced && (
+          <div className="advanced-panel">
+            {/* Tool buttons row */}
+            <div className="flex gap-2" style={{ marginTop: '0.75rem' }}>
+              <button
+                className={`btn w-full advanced-tool-btn ${activeAdvancedTool === 'crop' ? 'btn-primary' : ''}`}
+                onClick={() => handleToolToggle('crop')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path>
+                  <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path>
+                </svg>
+                Crop
+              </button>
+              <button
+                className={`btn w-full advanced-tool-btn ${activeAdvancedTool === 'space' ? 'btn-primary' : ''}`}
+                onClick={() => handleToolToggle('space')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="3" y1="9" x2="21" y2="9"></line>
+                  <line x1="3" y1="15" x2="21" y2="15"></line>
+                </svg>
+                Space
+              </button>
+              <button
+                className={`btn w-full advanced-tool-btn ${activeAdvancedTool === 'insert' ? 'btn-primary' : ''}`}
+                onClick={() => handleToolToggle('insert')}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                  <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                Insert
+              </button>
+            </div>
+
+            {/* Crop Panel */}
+            {activeAdvancedTool === 'crop' && (
+              <div className="advanced-tool-panel">
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                  Drag on the canvas to select the crop area, then click Apply.
+                </p>
+                <div className="flex gap-2">
+                  <button className="btn btn-primary w-full" onClick={() => { onCropApply(); setActiveAdvancedTool(null); }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Apply Crop
+                  </button>
+                  <button className="btn w-full" onClick={() => { onCropCancel(); setActiveAdvancedTool(null); }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Space/Padding Panel */}
+            {activeAdvancedTool === 'space' && (
+              <div className="advanced-tool-panel">
+                <div className="flex-col gap-4">
+                  <div className="flex-col">
+                    <label className="label">Position</label>
+                    <select 
+                      className="input-control" 
+                      value={spacePosition} 
+                      onChange={(e) => setSpacePosition(e.target.value)}
+                    >
+                      <option value="top">Top</option>
+                      <option value="bottom">Bottom</option>
+                      <option value="both">Both (Top & Bottom)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex-col">
+                    <label className="label">Padding Size [{spacePercent}%]</label>
+                    <input 
+                      type="range" 
+                      min="10" 
+                      max="100" 
+                      step="5"
+                      value={spacePercent} 
+                      onChange={(e) => setSpacePercent(Number(e.target.value))}
+                    />
+                  </div>
+
+                  <div className="flex-col">
+                    <label className="label">Background Color</label>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="color" 
+                        value={spaceColor} 
+                        onChange={(e) => setSpaceColor(e.target.value)}
+                      />
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{spaceColor}</span>
+                    </div>
+                  </div>
+
+                  <button 
+                    className="btn btn-primary w-full" 
+                    onClick={() => { 
+                      onAddSpace({ position: spacePosition, percent: spacePercent, color: spaceColor });
+                      setActiveAdvancedTool(null); 
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Apply Padding
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Insert Image Panel */}
+            {activeAdvancedTool === 'insert' && (
+              <div className="advanced-tool-panel">
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                  Select an image to add as a new layer on the canvas. You can drag and resize it.
+                </p>
+                <label className="btn btn-primary w-full" style={{ cursor: 'pointer' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                  Choose Image
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    style={{ display: 'none' }}
+                    onChange={(e) => { 
+                      onInsertImage(e); 
+                      setActiveAdvancedTool(null); 
+                    }}
+                  />
+                </label>
+              </div>
+            )}
           </div>
         )}
       </div>

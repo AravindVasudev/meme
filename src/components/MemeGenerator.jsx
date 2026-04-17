@@ -42,6 +42,12 @@ export default function MemeGenerator() {
   const [selectedTextId, setSelectedTextId] = useState(null);
   const [canvasDim, setCanvasDim] = useState({ width: 600, height: 400 });
   const stageRef = useRef(null);
+  
+  // Advanced features state
+  const [isCropping, setIsCropping] = useState(false);
+  const [cropRect, setCropRect] = useState(null);
+  const [insertedImages, setInsertedImages] = useState([]);
+  const [selectedInsertedImageId, setSelectedInsertedImageId] = useState(null);
 
   // When adding text, place it in the center.
   const handleAddText = () => {
@@ -136,6 +142,7 @@ export default function MemeGenerator() {
     if (!stageRef.current) return;
     // Deselect text so transformer handles are not in the screenshot
     setSelectedTextId(null);
+    setSelectedInsertedImageId(null);
 
     // Wait for state update to clear transformer, then export
     setTimeout(() => {
@@ -150,16 +157,177 @@ export default function MemeGenerator() {
     }, 100);
   };
 
+  // === CROP HANDLERS ===
+  const handleCropStart = () => {
+    setIsCropping(true);
+    setCropRect(null);
+  };
+
+  const handleCropApply = () => {
+    if (!cropRect || cropRect.width < 2 || cropRect.height < 2) {
+      setIsCropping(false);
+      setCropRect(null);
+      return;
+    }
+
+    // Adjust texts to new coordinate system
+    setTexts(prev => prev.map(t => ({
+      ...t,
+      x: t.x - cropRect.x,
+      y: t.y - cropRect.y,
+    })));
+
+    // Adjust inserted images to new coordinate system
+    setInsertedImages(prev => prev.map(img => ({
+      ...img,
+      x: img.x - cropRect.x,
+      y: img.y - cropRect.y,
+    })));
+
+    // If there's a background image, re-render the cropped portion
+    if (backgroundImageUrl) {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = cropRect.width;
+        canvas.height = cropRect.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, cropRect.x, cropRect.y, cropRect.width, cropRect.height, 0, 0, cropRect.width, cropRect.height);
+        setBackgroundImageUrl(canvas.toDataURL('image/png'));
+        setCanvasDim({ width: cropRect.width, height: cropRect.height });
+      };
+      img.src = backgroundImageUrl;
+    } else {
+      setCanvasDim({ width: cropRect.width, height: cropRect.height });
+    }
+
+    setIsCropping(false);
+    setCropRect(null);
+  };
+
+  const handleCropCancel = () => {
+    setIsCropping(false);
+    setCropRect(null);
+  };
+
+  // === ADD SPACE/PADDING HANDLER ===
+  const handleAddSpace = ({ position, percent, color }) => {
+    const paddingHeight = Math.round(canvasDim.height * (percent / 100));
+    const newWidth = canvasDim.width;
+    let newHeight = canvasDim.height;
+    let yOffset = 0; // How much to shift existing content down
+
+    if (position === 'top') {
+      newHeight += paddingHeight;
+      yOffset = paddingHeight;
+    } else if (position === 'bottom') {
+      newHeight += paddingHeight;
+      yOffset = 0;
+    } else if (position === 'both') {
+      newHeight += paddingHeight * 2;
+      yOffset = paddingHeight;
+    }
+
+    // Shift texts
+    if (yOffset > 0) {
+      setTexts(prev => prev.map(t => ({
+        ...t,
+        y: t.y + yOffset,
+      })));
+
+      // Shift inserted images
+      setInsertedImages(prev => prev.map(img => ({
+        ...img,
+        y: img.y + yOffset,
+      })));
+    }
+
+    // If there's a background image, compose a new image with padding
+    if (backgroundImageUrl) {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = newWidth;
+        canvas.height = newHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, newWidth, newHeight);
+        ctx.drawImage(img, 0, yOffset, img.width, img.height);
+        setBackgroundImageUrl(canvas.toDataURL('image/png'));
+        setCanvasDim({ width: newWidth, height: newHeight });
+      };
+      img.src = backgroundImageUrl;
+    } else {
+      // No background — just change dimensions (the canvas editor will handle the bg rect)
+      setCanvasDim({ width: newWidth, height: newHeight });
+    }
+  };
+
+  // === INSERT IMAGE HANDLER ===
+  const handleInsertImage = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const url = event.target.result;
+        const img = new window.Image();
+        img.onload = () => {
+          // Scale inserted image to fit within canvas at max 50% of canvas size
+          const maxW = canvasDim.width * 0.5;
+          const maxH = canvasDim.height * 0.5;
+          const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+          const w = img.width * scale;
+          const h = img.height * scale;
+
+          const newLayer = {
+            id: uuidv4(),
+            src: url,
+            x: (canvasDim.width - w) / 2,
+            y: (canvasDim.height - h) / 2,
+            width: w,
+            height: h,
+            rotation: 0,
+          };
+          setInsertedImages(prev => [...prev, newLayer]);
+          setSelectedInsertedImageId(newLayer.id);
+          setSelectedTextId(null);
+        };
+        img.src = url;
+      };
+      reader.readAsDataURL(file);
+    }
+    // Reset the input so the same file can be re-selected
+    e.target.value = '';
+  };
+
+  const handleUpdateInsertedImage = (id, newProps) => {
+    setInsertedImages(prev => prev.map(img => img.id === id ? { ...img, ...newProps } : img));
+  };
+
+  const handleDeleteInsertedImage = (id) => {
+    setInsertedImages(prev => prev.filter(img => img.id !== id));
+    if (selectedInsertedImageId === id) setSelectedInsertedImageId(null);
+  };
+
   return (
     <div className="app-container">
       <CanvasEditor 
         imageUrl={backgroundImageUrl}
         texts={texts}
         selectedTextId={selectedTextId}
-        onSelectText={setSelectedTextId}
+        onSelectText={(id) => { setSelectedTextId(id); setSelectedInsertedImageId(null); }}
         onUpdateText={handleUpdateText}
         stageRef={stageRef}
         onImageDrop={processImageFile}
+        // Advanced
+        isCropping={isCropping}
+        cropRect={cropRect}
+        onCropRectChange={setCropRect}
+        insertedImages={insertedImages}
+        selectedInsertedImageId={selectedInsertedImageId}
+        onSelectInsertedImage={(id) => { setSelectedInsertedImageId(id); setSelectedTextId(null); }}
+        onUpdateInsertedImage={handleUpdateInsertedImage}
+        onDeleteInsertedImage={handleDeleteInsertedImage}
       />
       
       <ControlPanel 
@@ -172,6 +340,13 @@ export default function MemeGenerator() {
         onDeleteText={handleDeleteText}
         onDownload={handleDownload}
         maxFontSize={Math.max(200, Math.floor(canvasDim.height / 2))}
+        // Advanced
+        onCropStart={handleCropStart}
+        onCropApply={handleCropApply}
+        onCropCancel={handleCropCancel}
+        isCropping={isCropping}
+        onAddSpace={handleAddSpace}
+        onInsertImage={handleInsertImage}
       />
     </div>
   );
