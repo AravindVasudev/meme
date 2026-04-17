@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import Konva from 'konva';
-import { Stage, Layer, Image as KonvaImage, Text, Transformer, Rect, Line } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Text, Transformer, Rect, Line, Circle, Ellipse, RegularPolygon } from 'react-konva';
 import useImage from 'use-image';
 
 // === Custom Filters ===
@@ -273,8 +273,10 @@ const CropOverlay = ({ canvasWidth, canvasHeight, cropRect, onCropRectChange, sc
 };
 
 // === Draw Overlay ===
-const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, scale, drawLines, onDrawLinesChange }) => {
+const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFillColor, scale, drawLines, onDrawLinesChange, activeDrawTool }) => {
   const [isCurrentlyDrawing, setIsCurrentlyDrawing] = useState(false);
+  const [startPos, setStartPos] = useState(null);
+  const [previewItem, setPreviewItem] = useState(null);
 
   const getCanvasPos = (e) => {
     const stage = e.target.getStage();
@@ -285,27 +287,99 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, scale, 
   const handleMouseDown = (e) => {
     const pos = getCanvasPos(e);
     setIsCurrentlyDrawing(true);
-    onDrawLinesChange([...drawLines, { points: [pos.x, pos.y], stroke: brushColor, strokeWidth: brushSize }]);
+    setStartPos(pos);
+    
+    if (activeDrawTool === 'pen') {
+      onDrawLinesChange([...drawLines, { type: 'path', points: [pos.x, pos.y], stroke: brushColor, strokeWidth: brushSize }]);
+    } else {
+      setPreviewItem({
+        type: activeDrawTool,
+        x: pos.x,
+        y: pos.y,
+        width: 0,
+        height: 0,
+        radius: 0,
+        radiusX: 0,
+        radiusY: 0,
+        stroke: brushColor,
+        strokeWidth: brushSize,
+        fill: brushFillColor,
+      });
+    }
   };
 
   const handleMouseMove = (e) => {
-    if (!isCurrentlyDrawing) return;
+    if (!isCurrentlyDrawing || !startPos) return;
     const pos = getCanvasPos(e);
-    const lastLine = drawLines[drawLines.length - 1];
-    onDrawLinesChange([
-      ...drawLines.slice(0, -1),
-      { ...lastLine, points: [...lastLine.points, pos.x, pos.y] },
-    ]);
+
+    if (activeDrawTool === 'pen') {
+      const lastLine = drawLines[drawLines.length - 1];
+      onDrawLinesChange([
+        ...drawLines.slice(0, -1),
+        { ...lastLine, points: [...lastLine.points, pos.x, pos.y] },
+      ]);
+    } else {
+      const dx = pos.x - startPos.x;
+      const dy = pos.y - startPos.y;
+      
+      let newItem = { ...previewItem };
+
+      if (activeDrawTool === 'rect' || activeDrawTool === 'square') {
+        let w = dx;
+        let h = dy;
+        if (activeDrawTool === 'square') {
+          const side = Math.max(Math.abs(w), Math.abs(h));
+          w = w >= 0 ? side : -side;
+          h = h >= 0 ? side : -side;
+        }
+        newItem = { ...newItem, x: startPos.x, y: startPos.y, width: w, height: h };
+      } else if (activeDrawTool === 'circle') {
+        const radius = Math.sqrt(dx * dx + dy * dy);
+        newItem = { ...newItem, x: startPos.x, y: startPos.y, radius };
+      } else if (activeDrawTool === 'ellipse') {
+        newItem = { ...newItem, x: startPos.x, y: startPos.y, radiusX: Math.abs(dx), radiusY: Math.abs(dy) };
+      } else if (activeDrawTool === 'triangle') {
+        const radius = Math.sqrt(dx * dx + dy * dy);
+        // Rotation for triangle to point where mouse is
+        const rotation = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+        newItem = { ...newItem, x: startPos.x, y: startPos.y, radius, rotation };
+      }
+      
+      setPreviewItem(newItem);
+    }
   };
 
-  const handleMouseUp = () => { setIsCurrentlyDrawing(false); };
+  const handleMouseUp = () => {
+    if (previewItem) {
+      onDrawLinesChange([...drawLines, previewItem]);
+      setPreviewItem(null);
+    }
+    setIsCurrentlyDrawing(false);
+    setStartPos(null);
+  };
 
   return (
-    <Rect
-      x={0} y={0} width={canvasWidth} height={canvasHeight} fill="transparent"
-      onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
-      onTouchStart={handleMouseDown} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}
-    />
+    <React.Fragment>
+      {/* Renderer for the item currently being drawn */}
+      {previewItem && (
+        <React.Fragment>
+          {previewItem.type === 'rect' || previewItem.type === 'square' ? (
+            <Rect {...previewItem} listening={false} />
+          ) : previewItem.type === 'circle' ? (
+            <Circle {...previewItem} listening={false} />
+          ) : previewItem.type === 'ellipse' ? (
+            <Ellipse {...previewItem} listening={false} />
+          ) : previewItem.type === 'triangle' ? (
+            <RegularPolygon {...previewItem} sides={3} listening={false} />
+          ) : null}
+        </React.Fragment>
+      )}
+      <Rect
+        x={0} y={0} width={canvasWidth} height={canvasHeight} fill="transparent"
+        onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
+        onTouchStart={handleMouseDown} onTouchMove={handleMouseMove} onTouchEnd={handleMouseUp}
+      />
+    </React.Fragment>
   );
 };
 
@@ -315,7 +389,7 @@ export default function CanvasEditor({
   isCropping, cropRect, onCropRectChange,
   insertedImages = [], selectedInsertedImageId, onUpdateInsertedImage,
   layerOrder = [],
-  drawLines = [], onDrawLinesChange, isDrawingMode, brushSize, brushColor,
+  drawLines = [], onDrawLinesChange, activeDrawTool, brushSize, brushColor, brushFillColor,
   activeFilter = 'none', backgroundColor = '#2d2d2d', canvasDim = { width: 600, height: 400 },
 }) {
   const [image] = useImage(imageUrl, 'anonymous');
@@ -374,7 +448,7 @@ export default function CanvasEditor({
   const currentHeight = image ? image.height : DEFAULT_HEIGHT;
 
   const filterConfig = FILTER_CONFIGS[activeFilter] || FILTER_CONFIGS.none;
-  const isInteractive = !isCropping && !isDrawingMode;
+  const isInteractive = !isCropping && !activeDrawTool;
 
   return (
     <div 
@@ -389,7 +463,7 @@ export default function CanvasEditor({
         onMouseDown={isInteractive ? checkDeselect : undefined}
         onTouchStart={isInteractive ? checkDeselect : undefined}
         ref={stageRef}
-        style={{ cursor: isCropping || isDrawingMode ? 'crosshair' : 'default' }}
+        style={{ cursor: isCropping || activeDrawTool ? 'crosshair' : 'default' }}
       >
         <Layer>
           {/* Background Layer (Always visible, behind the image) */}
@@ -440,26 +514,41 @@ export default function CanvasEditor({
             return null;
           })}
 
-          {/* Draw lines (always rendered) */}
-          {drawLines.map((line, i) => (
-            <Line
-              key={i}
-              points={line.points}
-              stroke={line.stroke}
-              strokeWidth={line.strokeWidth}
-              tension={0.5}
-              lineCap="round"
-              lineJoin="round"
-              globalCompositeOperation="source-over"
-            />
-          ))}
+          {/* Draw items (always rendered) */}
+          {drawLines.map((item, i) => {
+            if (item.type === 'path') {
+              return (
+                <Line
+                  key={i}
+                  points={item.points}
+                  stroke={item.stroke}
+                  strokeWidth={item.strokeWidth}
+                  tension={0.5}
+                  lineCap="round"
+                  lineJoin="round"
+                  globalCompositeOperation="source-over"
+                />
+              );
+            } else if (item.type === 'rect' || item.type === 'square') {
+              return <Rect key={i} {...item} />;
+            } else if (item.type === 'circle') {
+              return <Circle key={i} {...item} />;
+            } else if (item.type === 'ellipse') {
+              return <Ellipse key={i} {...item} />;
+            } else if (item.type === 'triangle') {
+              return <RegularPolygon key={i} {...item} sides={3} />;
+            }
+            return null;
+          })}
 
           {/* Draw interaction overlay */}
-          {isDrawingMode && (
+          {activeDrawTool && (
             <DrawOverlay
               canvasWidth={currentWidth} canvasHeight={currentHeight}
-              brushColor={brushColor} brushSize={brushSize} scale={scale}
-              drawLines={drawLines} onDrawLinesChange={onDrawLinesChange}
+              brushColor={brushColor} brushSize={brushSize} brushFillColor={brushFillColor} 
+              scale={scale} drawLines={drawLines} 
+              onDrawLinesChange={onDrawLinesChange}
+              activeDrawTool={activeDrawTool}
             />
           )}
 

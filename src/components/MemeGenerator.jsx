@@ -26,9 +26,10 @@ export default function MemeGenerator() {
 
   // Draw tool state
   const [drawLines, setDrawLines] = useState([]);
-  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [activeDrawTool, setActiveDrawTool] = useState(null); // 'pen', 'square', 'rect', 'circle', 'ellipse', 'triangle'
   const [brushSize, setBrushSize] = useState(5);
   const [brushColor, setBrushColor] = useState('#ff0000');
+  const [brushFillColor, setBrushFillColor] = useState('transparent');
 
   // Filter state
   const [activeFilter, setActiveFilter] = useState('none');
@@ -133,7 +134,7 @@ export default function MemeGenerator() {
     // Deselect everything so transformer handles are not in the screenshot
     setSelectedTextId(null);
     setSelectedInsertedImageId(null);
-    setIsDrawingMode(false);
+    setActiveDrawTool(null);
 
     // Wait for state update to clear transformer, then export
     setTimeout(() => {
@@ -363,6 +364,15 @@ export default function MemeGenerator() {
     }
   };
 
+  const handleSetDrawingMode = (tool) => {
+    setActiveDrawTool(tool);
+    // Deselect other things when drawing
+    if (tool) {
+      setSelectedTextId(null);
+      setSelectedInsertedImageId(null);
+    }
+  };
+
   // === ROTATE 90° CW ===
   const handleRotate = () => {
     const oldWidth = canvasDim.width;
@@ -467,9 +477,10 @@ export default function MemeGenerator() {
         // Draw
         drawLines={drawLines}
         onDrawLinesChange={setDrawLines}
-        isDrawingMode={isDrawingMode}
+        activeDrawTool={activeDrawTool}
         brushSize={brushSize}
         brushColor={brushColor}
+        brushFillColor={brushFillColor}
         // Filter
         activeFilter={activeFilter}
         backgroundColor={backgroundColor}
@@ -510,12 +521,14 @@ export default function MemeGenerator() {
         onMoveLayer={handleMoveLayer}
         onSelectLayer={handleSelectLayer}
         // Draw
-        isDrawingMode={isDrawingMode}
-        onSetDrawingMode={setIsDrawingMode}
+        activeDrawTool={activeDrawTool}
+        onSetActiveDrawTool={handleSetDrawingMode}
         brushSize={brushSize}
         onBrushSizeChange={setBrushSize}
         brushColor={brushColor}
         onBrushColorChange={setBrushColor}
+        brushFillColor={brushFillColor}
+        onBrushFillColorChange={setBrushFillColor}
         onClearDrawLines={handleClearDrawLines}
         // Rotate
         onRotate={handleRotate}
