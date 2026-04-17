@@ -311,9 +311,9 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, scale, 
 
 // === Main Canvas Editor ===
 export default function CanvasEditor({ 
-  imageUrl, texts, selectedTextId, onSelectText, onUpdateText, stageRef, onImageDrop,
+  imageUrl, texts, selectedTextId, onSelectLayer, onUpdateText, stageRef, onImageDrop,
   isCropping, cropRect, onCropRectChange,
-  insertedImages = [], selectedInsertedImageId, onSelectInsertedImage, onUpdateInsertedImage,
+  insertedImages = [], selectedInsertedImageId, onUpdateInsertedImage,
   layerOrder = [],
   drawLines = [], onDrawLinesChange, isDrawingMode, brushSize, brushColor,
   activeFilter = 'none',
@@ -346,8 +346,7 @@ export default function CanvasEditor({
   const checkDeselect = (e) => {
     const clickedOnEmpty = e.target === e.target.getStage() || e.target.getName() === 'bg';
     if (clickedOnEmpty) {
-      onSelectText(null);
-      if (onSelectInsertedImage) onSelectInsertedImage(null);
+      onSelectLayer(null, null);
     }
   };
 
@@ -417,7 +416,7 @@ export default function CanvasEditor({
               return (
                 <TextNode key={text.id} shapeProps={text}
                   isSelected={text.id === selectedTextId}
-                  onSelect={() => { onSelectText(text.id); if (onSelectInsertedImage) onSelectInsertedImage(null); }}
+                  onSelect={() => onSelectLayer(text.id, 'text')}
                   onChange={(newAttrs) => onUpdateText(text.id, newAttrs)}
                   canvasWidth={currentWidth} canvasHeight={currentHeight} scale={scale}
                 />
@@ -428,7 +427,7 @@ export default function CanvasEditor({
               return (
                 <InsertedImageNode key={imgData.id} imageData={imgData}
                   isSelected={imgData.id === selectedInsertedImageId}
-                  onSelect={() => { if (onSelectInsertedImage) onSelectInsertedImage(imgData.id); onSelectText(null); }}
+                  onSelect={() => onSelectLayer(imgData.id, 'image')}
                   onChange={(newAttrs) => { if (onUpdateInsertedImage) onUpdateInsertedImage(imgData.id, newAttrs); }}
                   canvasWidth={currentWidth} canvasHeight={currentHeight} scale={scale}
                 />

@@ -3,41 +3,10 @@ import { v4 as uuidv4 } from 'uuid';
 import CanvasEditor from './CanvasEditor';
 import ControlPanel from './ControlPanel';
 
-const INITIAL_TEXTS = [
-  {
-    id: uuidv4(),
-    text: 'TOP TEXT',
-    x: 0,
-    y: 20,
-    width: 600,
-    align: 'center',
-    fontSize: 40,
-    fill: '#ffffff',
-    stroke: '#000000',
-    strokeWidth: 2,
-    fontStyle: 'normal',
-    opacity: 1,
-    fontFamily: 'Impact, Arial',
-  },
-  {
-    id: uuidv4(),
-    text: 'BOTTOM TEXT',
-    x: 0,
-    y: 340,
-    width: 600,
-    align: 'center',
-    fontSize: 40,
-    fill: '#ffffff',
-    stroke: '#000000',
-    strokeWidth: 2,
-    fontStyle: 'normal',
-    opacity: 1,
-    fontFamily: 'Impact, Arial',
-  }
-];
+const INITIAL_TEXTS = [];
 
 // layerOrder: index 0 = bottom-most layer, last = top-most on canvas
-const INITIAL_LAYER_ORDER = INITIAL_TEXTS.map(t => ({ id: t.id, type: 'text' }));
+const INITIAL_LAYER_ORDER = [];
 
 export default function MemeGenerator() {
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
@@ -328,6 +297,46 @@ export default function MemeGenerator() {
     if (selectedInsertedImageId === id) setSelectedInsertedImageId(null);
   };
 
+  const handleDuplicateLayer = (id, type) => {
+    if (type === 'text') {
+      const original = texts.find(t => t.id === id);
+      if (!original) return;
+      const newLayer = {
+        ...original,
+        id: uuidv4(),
+        x: original.x + 20,
+        y: original.y + 20,
+      };
+      setTexts(prev => [...prev, newLayer]);
+      setLayerOrder(prev => {
+        const idx = prev.findIndex(l => l.id === id);
+        const newOrder = [...prev];
+        newOrder.splice(idx + 1, 0, { id: newLayer.id, type: 'text' });
+        return newOrder;
+      });
+      setSelectedTextId(newLayer.id);
+      setSelectedInsertedImageId(null);
+    } else if (type === 'image') {
+      const original = insertedImages.find(img => img.id === id);
+      if (!original) return;
+      const newLayer = {
+        ...original,
+        id: uuidv4(),
+        x: original.x + 20,
+        y: original.y + 20,
+      };
+      setInsertedImages(prev => [...prev, newLayer]);
+      setLayerOrder(prev => {
+        const idx = prev.findIndex(l => l.id === id);
+        const newOrder = [...prev];
+        newOrder.splice(idx + 1, 0, { id: newLayer.id, type: 'image' });
+        return newOrder;
+      });
+      setSelectedInsertedImageId(newLayer.id);
+      setSelectedTextId(null);
+    }
+  };
+
   // === LAYER REORDERING ===
   const handleMoveLayer = (id, direction) => {
     setLayerOrder(prev => {
@@ -408,13 +417,37 @@ export default function MemeGenerator() {
     setDrawLines([]);
   };
 
+  // === KEYBOARD SHORTCUTS ===
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't delete if we're typing in an input or textarea
+      if (
+        document.activeElement.tagName === 'INPUT' || 
+        document.activeElement.tagName === 'TEXTAREA' ||
+        document.activeElement.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedTextId) {
+          handleDeleteText(selectedTextId);
+        } else if (selectedInsertedImageId) {
+          handleDeleteInsertedImage(selectedInsertedImageId);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedTextId, selectedInsertedImageId, handleDeleteText, handleDeleteInsertedImage]);
+
   return (
     <div className="app-container">
       <CanvasEditor 
         imageUrl={backgroundImageUrl}
         texts={texts}
         selectedTextId={selectedTextId}
-        onSelectText={(id) => { setSelectedTextId(id); setSelectedInsertedImageId(null); }}
         onUpdateText={handleUpdateText}
         stageRef={stageRef}
         onImageDrop={processImageFile}
@@ -424,7 +457,7 @@ export default function MemeGenerator() {
         onCropRectChange={setCropRect}
         insertedImages={insertedImages}
         selectedInsertedImageId={selectedInsertedImageId}
-        onSelectInsertedImage={(id) => { setSelectedInsertedImageId(id); setSelectedTextId(null); }}
+        onSelectLayer={handleSelectLayer}
         onUpdateInsertedImage={handleUpdateInsertedImage}
         // Layer ordering
         layerOrder={layerOrder}
@@ -460,6 +493,7 @@ export default function MemeGenerator() {
         selectedInsertedImageId={selectedInsertedImageId}
         onSelectInsertedImage={setSelectedInsertedImageId}
         onDeleteInsertedImage={handleDeleteInsertedImage}
+        onDuplicateLayer={handleDuplicateLayer}
         layerOrder={layerOrder}
         onMoveLayer={handleMoveLayer}
         onSelectLayer={handleSelectLayer}
