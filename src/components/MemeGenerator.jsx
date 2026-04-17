@@ -36,6 +36,9 @@ const INITIAL_TEXTS = [
   }
 ];
 
+// layerOrder: index 0 = bottom-most layer, last = top-most on canvas
+const INITIAL_LAYER_ORDER = INITIAL_TEXTS.map(t => ({ id: t.id, type: 'text' }));
+
 export default function MemeGenerator() {
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
   const [texts, setTexts] = useState(INITIAL_TEXTS);
@@ -48,6 +51,9 @@ export default function MemeGenerator() {
   const [cropRect, setCropRect] = useState(null);
   const [insertedImages, setInsertedImages] = useState([]);
   const [selectedInsertedImageId, setSelectedInsertedImageId] = useState(null);
+
+  // Unified layer ordering
+  const [layerOrder, setLayerOrder] = useState(INITIAL_LAYER_ORDER);
 
   // When adding text, place it in the center.
   const handleAddText = () => {
@@ -68,7 +74,9 @@ export default function MemeGenerator() {
       fontFamily: 'Impact, Arial',
     };
     setTexts(prev => [...prev, newText]);
+    setLayerOrder(prev => [...prev, { id: newText.id, type: 'text' }]);
     setSelectedTextId(newText.id);
+    setSelectedInsertedImageId(null);
   };
 
   const handleUpdateText = (id, newProps) => {
@@ -77,6 +85,7 @@ export default function MemeGenerator() {
 
   const handleDeleteText = (id) => {
     setTexts(prev => prev.filter(t => t.id !== id));
+    setLayerOrder(prev => prev.filter(l => l.id !== id));
     if (selectedTextId === id) setSelectedTextId(null);
   };
 
@@ -282,6 +291,7 @@ export default function MemeGenerator() {
           const newLayer = {
             id: uuidv4(),
             src: url,
+            name: file.name,
             x: (canvasDim.width - w) / 2,
             y: (canvasDim.height - h) / 2,
             width: w,
@@ -289,6 +299,7 @@ export default function MemeGenerator() {
             rotation: 0,
           };
           setInsertedImages(prev => [...prev, newLayer]);
+          setLayerOrder(prev => [...prev, { id: newLayer.id, type: 'image' }]);
           setSelectedInsertedImageId(newLayer.id);
           setSelectedTextId(null);
         };
@@ -306,7 +317,33 @@ export default function MemeGenerator() {
 
   const handleDeleteInsertedImage = (id) => {
     setInsertedImages(prev => prev.filter(img => img.id !== id));
+    setLayerOrder(prev => prev.filter(l => l.id !== id));
     if (selectedInsertedImageId === id) setSelectedInsertedImageId(null);
+  };
+
+  // === LAYER REORDERING ===
+  // direction: 'up' = higher z-order (render on top), 'down' = lower z-order (render behind)
+  const handleMoveLayer = (id, direction) => {
+    setLayerOrder(prev => {
+      const idx = prev.findIndex(l => l.id === id);
+      if (idx === -1) return prev;
+      const newIdx = direction === 'up' ? idx + 1 : idx - 1;
+      if (newIdx < 0 || newIdx >= prev.length) return prev;
+      const newOrder = [...prev];
+      [newOrder[idx], newOrder[newIdx]] = [newOrder[newIdx], newOrder[idx]];
+      return newOrder;
+    });
+  };
+
+  // Helper to select any layer by id
+  const handleSelectLayer = (id, type) => {
+    if (type === 'text') {
+      setSelectedTextId(id);
+      setSelectedInsertedImageId(null);
+    } else if (type === 'image') {
+      setSelectedInsertedImageId(id);
+      setSelectedTextId(null);
+    }
   };
 
   return (
@@ -327,7 +364,8 @@ export default function MemeGenerator() {
         selectedInsertedImageId={selectedInsertedImageId}
         onSelectInsertedImage={(id) => { setSelectedInsertedImageId(id); setSelectedTextId(null); }}
         onUpdateInsertedImage={handleUpdateInsertedImage}
-        onDeleteInsertedImage={handleDeleteInsertedImage}
+        // Layer ordering
+        layerOrder={layerOrder}
       />
       
       <ControlPanel 
@@ -347,6 +385,14 @@ export default function MemeGenerator() {
         isCropping={isCropping}
         onAddSpace={handleAddSpace}
         onInsertImage={handleInsertImage}
+        // Layer management
+        insertedImages={insertedImages}
+        selectedInsertedImageId={selectedInsertedImageId}
+        onSelectInsertedImage={setSelectedInsertedImageId}
+        onDeleteInsertedImage={handleDeleteInsertedImage}
+        layerOrder={layerOrder}
+        onMoveLayer={handleMoveLayer}
+        onSelectLayer={handleSelectLayer}
       />
     </div>
   );

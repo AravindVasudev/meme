@@ -19,13 +19,21 @@ export default function ControlPanel({
   isCropping,
   onAddSpace,
   onInsertImage,
+  // Layer management
+  insertedImages = [],
+  selectedInsertedImageId,
+  onSelectInsertedImage,
+  onDeleteInsertedImage,
+  layerOrder = [],
+  onMoveLayer,
+  onSelectLayer,
 }) {
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [activeAdvancedTool, setActiveAdvancedTool] = useState(null); // 'crop' | 'space' | 'insert'
+  const [activeAdvancedTool, setActiveAdvancedTool] = useState(null);
   
   // Space/padding state
-  const [spacePosition, setSpacePosition] = useState('bottom'); // 'top' | 'bottom' | 'both'
+  const [spacePosition, setSpacePosition] = useState('bottom');
   const [spacePercent, setSpacePercent] = useState(20);
   const [spaceColor, setSpaceColor] = useState('#000000');
 
@@ -36,7 +44,6 @@ export default function ControlPanel({
         onCropCancel();
       }
     } else {
-      // Cancel crop if switching away
       if (isCropping) {
         onCropCancel();
       }
@@ -45,6 +52,278 @@ export default function ControlPanel({
         onCropStart();
       }
     }
+  };
+
+  // Display layers top-to-bottom (reverse of layerOrder array since last = top)
+  const displayLayers = [...layerOrder].reverse();
+
+  const renderLayerCard = (layer, displayIndex) => {
+    const isTopmost = displayIndex === 0;
+    const isBottommost = displayIndex === displayLayers.length - 1;
+
+    if (layer.type === 'text') {
+      const item = texts.find(t => t.id === layer.id);
+      if (!item) return null;
+      const isSelected = item.id === selectedTextId;
+      const textIndex = texts.indexOf(item);
+
+      return (
+        <div 
+          key={item.id} 
+          className={`layer-card flex-col gap-2 p-4 ${isSelected ? 'layer-card-selected' : ''}`}
+          onClick={() => { if (!isSelected) onSelectLayer(item.id, 'text'); }}
+        >
+          {/* Layer header row */}
+          <div className="flex gap-2 items-center">
+            <span className="layer-type-badge layer-type-text" title="Text Layer">T</span>
+            <input 
+              type="text" 
+              className="input-control" 
+              value={item.text} 
+              onChange={(e) => onUpdateText(item.id, { text: e.target.value })}
+              placeholder={`Text Layer ${textIndex + 1}`}
+              style={{ flex: 1 }}
+            />
+            <button 
+              className="btn btn-icon" 
+              onClick={(e) => { e.stopPropagation(); setShowEmojiPickerFor(showEmojiPickerFor === item.id ? null : item.id); }}
+              title="Insert Emoji"
+              style={{ fontSize: '0.9rem' }}
+            >
+              😀
+            </button>
+            <button 
+              className="btn btn-icon btn-danger" 
+              onClick={(e) => { e.stopPropagation(); onDeleteText(item.id); }}
+              title="Delete Layer"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+            <div className="layer-reorder-btns">
+              <button 
+                className="btn btn-icon layer-move-btn" 
+                onClick={(e) => { e.stopPropagation(); onMoveLayer(item.id, 'up'); }}
+                disabled={isTopmost}
+                title="Move Up (Front)"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+              </button>
+              <button 
+                className="btn btn-icon layer-move-btn" 
+                onClick={(e) => { e.stopPropagation(); onMoveLayer(item.id, 'down'); }}
+                disabled={isBottommost}
+                title="Move Down (Back)"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Emoji picker dropdown */}
+          {showEmojiPickerFor === item.id && (
+            <div style={{
+              position: 'relative',
+              zIndex: 10,
+              background: 'var(--bg-color)',
+              border: '1px solid var(--border-color)',
+              padding: '0.5rem',
+              borderRadius: '8px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: '0.2rem',
+              boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+            }}>
+              {EMOJIS.map(emoji => (
+                <button
+                  key={emoji}
+                  className="btn btn-icon"
+                  style={{ border: 'none', background: 'transparent', fontSize: '1.2rem' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateText(item.id, { text: item.text + emoji });
+                    setShowEmojiPickerFor(null);
+                  }}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Expanded controls when selected */}
+          {isSelected && (
+            <div className="flex-col gap-4" style={{ marginTop: '0.5rem' }}>
+
+              {/* Font Type */}
+              <div className="flex-col w-full">
+                <label className="label">Font Family</label>
+                <select 
+                  className="input-control" 
+                  value={item.fontFamily || 'Impact, Arial'} 
+                  onChange={(e) => onUpdateText(item.id, { fontFamily: e.target.value })}
+                >
+                  <option value="Impact, Arial">Impact</option>
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="Times New Roman, serif">Times New Roman</option>
+                  <option value="Courier New, monospace">Courier New</option>
+                  <option value="Comic Sans MS, cursive">Comic Sans MS</option>
+                  <option value="Verdana, sans-serif">Verdana</option>
+                </select>
+              </div>
+              
+              {/* Colors */}
+              <div className="flex gap-4">
+                <div className="flex-col w-full">
+                  <label className="label">Fill Color</label>
+                  <input 
+                    type="color" 
+                    value={item.fill} 
+                    onChange={(e) => onUpdateText(item.id, { fill: e.target.value })}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex-col w-full">
+                  <label className="label">Stroke Color</label>
+                  <input 
+                    type="color" 
+                    value={item.stroke} 
+                    onChange={(e) => onUpdateText(item.id, { stroke: e.target.value })}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Sliders */}
+              <div className="flex-col gap-2">
+                <div>
+                  <div className="flex justify-between">
+                    <label className="label">Font Size [{Math.round(item.fontSize)}px]</label>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="10" 
+                    max={maxFontSize} 
+                    value={item.fontSize} 
+                    onChange={(e) => onUpdateText(item.id, { fontSize: Number(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between">
+                    <label className="label">Outline Width [{Math.round(item.strokeWidth)}px]</label>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max={Math.max(10, Math.floor(maxFontSize * 0.1))} 
+                    value={item.strokeWidth} 
+                    onChange={(e) => onUpdateText(item.id, { strokeWidth: Number(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between">
+                    <label className="label">Opacity [{Math.round(item.opacity * 100)}%]</label>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" max="1" step="0.05"
+                    value={item.opacity} 
+                    onChange={(e) => onUpdateText(item.id, { opacity: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              {/* Toggles */}
+              <div className="flex gap-2">
+                <button 
+                  className={`btn w-full ${item.fontStyle.includes('bold') ? 'btn-primary' : ''}`}
+                  onClick={() => {
+                    const isBold = item.fontStyle.includes('bold');
+                    const newStyle = isBold ? item.fontStyle.replace('bold', '').trim() : item.fontStyle + ' bold';
+                    onUpdateText(item.id, { fontStyle: newStyle || 'normal' });
+                  }}
+                  style={{ fontWeight: 'bold' }}
+                >
+                  B
+                </button>
+                <button 
+                  className={`btn w-full ${item.fontStyle.includes('italic') ? 'btn-primary' : ''}`}
+                  onClick={() => {
+                    const isItalic = item.fontStyle.includes('italic');
+                    const newStyle = isItalic ? item.fontStyle.replace('italic', '').trim() : item.fontStyle + ' italic';
+                    onUpdateText(item.id, { fontStyle: newStyle || 'normal' });
+                  }}
+                  style={{ fontStyle: 'italic' }}
+                >
+                  I
+                </button>
+              </div>
+
+            </div>
+          )}
+        </div>
+      );
+    } else if (layer.type === 'image') {
+      const imgData = insertedImages.find(img => img.id === layer.id);
+      if (!imgData) return null;
+      const isSelected = imgData.id === selectedInsertedImageId;
+      const imgName = imgData.name || 'Image';
+      // Truncate long filenames
+      const displayName = imgName.length > 18 ? imgName.substring(0, 15) + '…' : imgName;
+
+      return (
+        <div 
+          key={imgData.id}
+          className={`layer-card flex-col gap-2 p-4 ${isSelected ? 'layer-card-selected' : ''}`}
+          onClick={() => { if (!isSelected) onSelectLayer(imgData.id, 'image'); }}
+        >
+          <div className="flex gap-2 items-center">
+            <span className="layer-type-badge layer-type-image" title="Image Layer">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            </span>
+            <img 
+              src={imgData.src} 
+              alt={displayName}
+              className="layer-image-thumb"
+            />
+            <span className="layer-image-name" title={imgName}>{displayName}</span>
+            <button 
+              className="btn btn-icon btn-danger" 
+              onClick={(e) => { e.stopPropagation(); onDeleteInsertedImage(imgData.id); }}
+              title="Delete Layer"
+              style={{ marginLeft: 'auto' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+            <div className="layer-reorder-btns">
+              <button 
+                className="btn btn-icon layer-move-btn" 
+                onClick={(e) => { e.stopPropagation(); onMoveLayer(imgData.id, 'up'); }}
+                disabled={isTopmost}
+                title="Move Up (Front)"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+              </button>
+              <button 
+                className="btn btn-icon layer-move-btn" 
+                onClick={(e) => { e.stopPropagation(); onMoveLayer(imgData.id, 'down'); }}
+                disabled={isBottommost}
+                title="Move Down (Back)"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -66,204 +345,20 @@ export default function ControlPanel({
 
       <hr style={{ borderColor: 'var(--border-color)', margin: '1rem 0' }} />
 
-      {/* Text Settings */}
+      {/* Unified Layers Section */}
       <div className="flex justify-between items-center">
-        <h3 style={{ fontSize: '1.2rem' }}>Text Layers</h3>
+        <h3 style={{ fontSize: '1.2rem' }}>Layers</h3>
         <button className="btn" onClick={onAddText}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           Add Text
         </button>
       </div>
 
-      <div className="flex-col gap-4" style={{ marginTop: '1rem' }}>
-        {texts.map((item, index) => {
-          const isSelected = item.id === selectedTextId;
-          return (
-            <div 
-              key={item.id} 
-              className={`flex-col gap-2 p-4 ${isSelected ? 'selected' : ''}`}
-              style={{ 
-                border: isSelected ? '1px solid var(--accent-color)' : '1px solid var(--border-color)',
-                borderRadius: '8px',
-                background: isSelected ? 'rgba(139, 92, 246, 0.1)' : 'rgba(0,0,0,0.2)',
-                transition: 'all 0.2s'
-              }}
-              onClick={() => { if (!isSelected) onSelectText(item.id) }}
-            >
-              <div className="flex gap-2" style={{ position: 'relative' }}>
-                <input 
-                  type="text" 
-                  className="input-control" 
-                  value={item.text} 
-                  onChange={(e) => onUpdateText(item.id, { text: e.target.value })}
-                  placeholder={`Text Layer ${index + 1}`}
-                />
-                <button 
-                  className="btn btn-icon" 
-                  onClick={(e) => { e.stopPropagation(); setShowEmojiPickerFor(showEmojiPickerFor === item.id ? null : item.id); }}
-                  title="Insert Emoji"
-                >
-                  😀
-                </button>
-                <button 
-                  className="btn btn-icon btn-danger" 
-                  onClick={(e) => { e.stopPropagation(); onDeleteText(item.id); }}
-                  title="Delete Layer"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                </button>
-                
-                {showEmojiPickerFor === item.id && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    zIndex: 10,
-                    background: 'var(--bg-color)',
-                    border: '1px solid var(--border-color)',
-                    padding: '0.5rem',
-                    borderRadius: '8px',
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(5, 1fr)',
-                    gap: '0.2rem',
-                    boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
-                    marginTop: '0.2rem'
-                  }}>
-                    {EMOJIS.map(emoji => (
-                      <button
-                        key={emoji}
-                        className="btn btn-icon"
-                        style={{ border: 'none', background: 'transparent', fontSize: '1.2rem' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onUpdateText(item.id, { text: item.text + emoji });
-                          setShowEmojiPickerFor(null);
-                        }}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {isSelected && (
-                <div className="flex-col gap-4" style={{ marginTop: '0.5rem' }}>
-
-                  {/* Font Type */}
-                  <div className="flex-col w-full">
-                    <label className="label">Font Family</label>
-                    <select 
-                      className="input-control" 
-                      value={item.fontFamily || 'Impact, Arial'} 
-                      onChange={(e) => onUpdateText(item.id, { fontFamily: e.target.value })}
-                    >
-                      <option value="Impact, Arial">Impact</option>
-                      <option value="Arial, sans-serif">Arial</option>
-                      <option value="Times New Roman, serif">Times New Roman</option>
-                      <option value="Courier New, monospace">Courier New</option>
-                      <option value="Comic Sans MS, cursive">Comic Sans MS</option>
-                      <option value="Verdana, sans-serif">Verdana</option>
-                    </select>
-                  </div>
-                  
-                  {/* Colors */}
-                  <div className="flex gap-4">
-                    <div className="flex-col w-full">
-                      <label className="label">Fill Color</label>
-                      <input 
-                        type="color" 
-                        value={item.fill} 
-                        onChange={(e) => onUpdateText(item.id, { fill: e.target.value })}
-                        className="w-full"
-                      />
-                    </div>
-                    <div className="flex-col w-full">
-                      <label className="label">Stroke Color</label>
-                      <input 
-                        type="color" 
-                        value={item.stroke} 
-                        onChange={(e) => onUpdateText(item.id, { stroke: e.target.value })}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Sliders */}
-                  <div className="flex-col gap-2">
-                    <div>
-                      <div className="flex justify-between">
-                        <label className="label">Font Size [{Math.round(item.fontSize)}px]</label>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="10" 
-                        max={maxFontSize} 
-                        value={item.fontSize} 
-                        onChange={(e) => onUpdateText(item.id, { fontSize: Number(e.target.value) })}
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between">
-                        <label className="label">Outline Width [{Math.round(item.strokeWidth)}px]</label>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="0" 
-                        max={Math.max(10, Math.floor(maxFontSize * 0.1))} 
-                        value={item.strokeWidth} 
-                        onChange={(e) => onUpdateText(item.id, { strokeWidth: Number(e.target.value) })}
-                      />
-                    </div>
-
-                    <div>
-                      <div className="flex justify-between">
-                        <label className="label">Opacity [{Math.round(item.opacity * 100)}%]</label>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="0" max="1" step="0.05"
-                        value={item.opacity} 
-                        onChange={(e) => onUpdateText(item.id, { opacity: Number(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Toggles */}
-                  <div className="flex gap-2">
-                    <button 
-                      className={`btn w-full ${item.fontStyle.includes('bold') ? 'btn-primary' : ''}`}
-                      onClick={() => {
-                        const isBold = item.fontStyle.includes('bold');
-                        const newStyle = isBold ? item.fontStyle.replace('bold', '').trim() : item.fontStyle + ' bold';
-                        onUpdateText(item.id, { fontStyle: newStyle || 'normal' });
-                      }}
-                      style={{ fontWeight: 'bold' }}
-                    >
-                      B
-                    </button>
-                    <button 
-                      className={`btn w-full ${item.fontStyle.includes('italic') ? 'btn-primary' : ''}`}
-                      onClick={() => {
-                        const isItalic = item.fontStyle.includes('italic');
-                        const newStyle = isItalic ? item.fontStyle.replace('italic', '').trim() : item.fontStyle + ' italic';
-                        onUpdateText(item.id, { fontStyle: newStyle || 'normal' });
-                      }}
-                      style={{ fontStyle: 'italic' }}
-                    >
-                      I
-                    </button>
-                  </div>
-
-                </div>
-              )}
-            </div>
-          )
-        })}
-        {texts.length === 0 && (
+      <div className="flex-col gap-2" style={{ marginTop: '0.5rem' }}>
+        {displayLayers.map((layer, idx) => renderLayerCard(layer, idx))}
+        {displayLayers.length === 0 && (
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem' }}>
-            No text layers. Add one above!
+            No layers yet. Add text or insert an image!
           </div>
         )}
       </div>
@@ -277,7 +372,6 @@ export default function ControlPanel({
           onClick={() => {
             setShowAdvanced(!showAdvanced);
             if (showAdvanced) {
-              // Closing advanced — cancel any active tool
               if (isCropping) onCropCancel();
               setActiveAdvancedTool(null);
             }

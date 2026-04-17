@@ -311,7 +311,9 @@ export default function CanvasEditor({
   imageUrl, texts, selectedTextId, onSelectText, onUpdateText, stageRef, onImageDrop,
   // Advanced props
   isCropping, cropRect, onCropRectChange,
-  insertedImages = [], selectedInsertedImageId, onSelectInsertedImage, onUpdateInsertedImage, onDeleteInsertedImage,
+  insertedImages = [], selectedInsertedImageId, onSelectInsertedImage, onUpdateInsertedImage,
+  // Layer ordering
+  layerOrder = [],
 }) {
   const [image] = useImage(imageUrl, 'anonymous');
   const [containerSize, setContainerSize] = useState({ width: 500, height: 500 });
@@ -364,6 +366,9 @@ export default function CanvasEditor({
     }
   }, [scale, stageRef]);
 
+  const currentWidth = image ? image.width : DEFAULT_WIDTH;
+  const currentHeight = image ? image.height : DEFAULT_HEIGHT;
+
   return (
     <div 
       className="canvas-area glass-panel" 
@@ -413,56 +418,57 @@ export default function CanvasEditor({
             />
           )}
 
-          {/* Inserted image layers */}
-          {insertedImages.map((imgData) => {
-            const currentWidth = image ? image.width : DEFAULT_WIDTH;
-            const currentHeight = image ? image.height : DEFAULT_HEIGHT;
-            return (
-              <InsertedImageNode
-                key={imgData.id}
-                imageData={imgData}
-                isSelected={imgData.id === selectedInsertedImageId}
-                onSelect={() => {
-                  if (onSelectInsertedImage) onSelectInsertedImage(imgData.id);
-                  onSelectText(null);
-                }}
-                onChange={(newAttrs) => {
-                  if (onUpdateInsertedImage) onUpdateInsertedImage(imgData.id, newAttrs);
-                }}
-                canvasWidth={currentWidth}
-                canvasHeight={currentHeight}
-                scale={scale}
-              />
-            );
-          })}
-
-          {texts.map((text, i) => {
-            const currentWidth = image ? image.width : DEFAULT_WIDTH;
-            const currentHeight = image ? image.height : DEFAULT_HEIGHT;
-            return (
-              <TextNode
-                key={text.id}
-                shapeProps={text}
-                isSelected={text.id === selectedTextId}
-                onSelect={() => {
-                  onSelectText(text.id);
-                  if (onSelectInsertedImage) onSelectInsertedImage(null);
-                }}
-                onChange={(newAttrs) => {
-                  onUpdateText(text.id, newAttrs);
-                }}
-                canvasWidth={currentWidth}
-                canvasHeight={currentHeight}
-                scale={scale}
-              />
-            );
+          {/* Render layers in layerOrder (index 0 = bottom, last = top) */}
+          {layerOrder.map((layer) => {
+            if (layer.type === 'text') {
+              const text = texts.find(t => t.id === layer.id);
+              if (!text) return null;
+              return (
+                <TextNode
+                  key={text.id}
+                  shapeProps={text}
+                  isSelected={text.id === selectedTextId}
+                  onSelect={() => {
+                    onSelectText(text.id);
+                    if (onSelectInsertedImage) onSelectInsertedImage(null);
+                  }}
+                  onChange={(newAttrs) => {
+                    onUpdateText(text.id, newAttrs);
+                  }}
+                  canvasWidth={currentWidth}
+                  canvasHeight={currentHeight}
+                  scale={scale}
+                />
+              );
+            } else if (layer.type === 'image') {
+              const imgData = insertedImages.find(img => img.id === layer.id);
+              if (!imgData) return null;
+              return (
+                <InsertedImageNode
+                  key={imgData.id}
+                  imageData={imgData}
+                  isSelected={imgData.id === selectedInsertedImageId}
+                  onSelect={() => {
+                    if (onSelectInsertedImage) onSelectInsertedImage(imgData.id);
+                    onSelectText(null);
+                  }}
+                  onChange={(newAttrs) => {
+                    if (onUpdateInsertedImage) onUpdateInsertedImage(imgData.id, newAttrs);
+                  }}
+                  canvasWidth={currentWidth}
+                  canvasHeight={currentHeight}
+                  scale={scale}
+                />
+              );
+            }
+            return null;
           })}
 
           {/* Crop overlay */}
           {isCropping && (
             <CropOverlay
-              canvasWidth={image ? image.width : DEFAULT_WIDTH}
-              canvasHeight={image ? image.height : DEFAULT_HEIGHT}
+              canvasWidth={currentWidth}
+              canvasHeight={currentHeight}
               cropRect={cropRect}
               onCropRectChange={onCropRectChange}
               scale={scale}
