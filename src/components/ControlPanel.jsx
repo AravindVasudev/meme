@@ -58,7 +58,6 @@ export default function ControlPanel({
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showResolution, setShowResolution] = useState(false);
-  const [showDraw, setShowDraw] = useState(false);
   const [activeAdvancedTool, setActiveAdvancedTool] = useState(null);
   
   // Space/padding state
@@ -417,16 +416,101 @@ export default function ControlPanel({
             </div>
           </div>
           {isSelected && (
-             <div className="flex-col gap-2" style={{ marginTop: '0.5rem' }}>
-                <button 
-                  className="btn btn-sm btn-danger w-full" 
-                  onClick={(e) => { e.stopPropagation(); onClearDrawLines(drawData.id); }}
-                >
-                  Clear Layer Content
-                </button>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-                  Use the "Draw & Shapes" section below to add to this layer.
-                </p>
+             <div className="flex-col gap-4 p-3 glass-panel-dark" style={{ marginTop: '0.5rem', borderRadius: '8px' }}>
+                {/* Tool Selector */}
+                <div className="flex flex-wrap gap-2">
+                  <button 
+                    className={`btn btn-icon ${activeDrawTool === 'pen' ? 'btn-primary' : ''}`} 
+                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'pen' ? null : 'pen'); }}
+                    title="Pen Tool"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path></svg>
+                  </button>
+                  <button 
+                    className={`btn btn-icon ${activeDrawTool === 'square' ? 'btn-primary' : ''}`} 
+                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'square' ? null : 'square'); }}
+                    title="Square Tool"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="5" y="5" width="14" height="14" rx="1" ry="1" />
+                    </svg>
+                  </button>
+                  <button 
+                    className={`btn btn-icon ${activeDrawTool === 'rect' ? 'btn-primary' : ''}`} 
+                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'rect' ? null : 'rect'); }}
+                    title="Rectangle Tool"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="6" width="18" height="12" rx="1" ry="1" />
+                    </svg>
+                  </button>
+                  <button 
+                    className={`btn btn-icon ${activeDrawTool === 'circle' ? 'btn-primary' : ''}`} 
+                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'circle' ? null : 'circle'); }}
+                    title="Circle Tool"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="9" />
+                    </svg>
+                  </button>
+                  <button 
+                    className={`btn btn-icon ${activeDrawTool === 'ellipse' ? 'btn-primary' : ''}`} 
+                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'ellipse' ? null : 'ellipse'); }}
+                    title="Ellipse Tool"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <ellipse cx="12" cy="12" rx="9" ry="6" />
+                    </svg>
+                  </button>
+                  <button 
+                    className={`btn btn-icon ${activeDrawTool === 'triangle' ? 'btn-primary' : ''}`} 
+                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'triangle' ? null : 'triangle'); }}
+                    title="Triangle Tool"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 4L4 18h16L12 4z" />
+                    </svg>
+                  </button>
+                  <button className="btn btn-icon btn-danger" onClick={(e) => { e.stopPropagation(); onClearDrawLines(drawData.id); }} title="Clear Layer Content">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  </button>
+                </div>
+
+                {/* Styling Options */}
+                <div className="flex-col gap-3">
+                  <div className="flex justify-between items-center">
+                    <label className="label" style={{ marginBottom: 0 }}>Stroke Width [{brushSize}px]</label>
+                    <input type="range" min="1" max="300" value={brushSize} onChange={(e) => onBrushSizeChange(Number(e.target.value))} onClick={(e) => e.stopPropagation()} style={{ width: '120px' }} />
+                  </div>
+                  
+                  <div className="flex gap-4">
+                    <div className="flex-col w-full">
+                      <label className="label">Stroke Color</label>
+                      <input type="color" value={brushColor} onChange={(e) => onBrushColorChange(e.target.value)} onClick={(e) => e.stopPropagation()} className="w-full" />
+                    </div>
+                    <div className="flex-col w-full">
+                      <label className="label">Fill Color</label>
+                      <div className="flex gap-2 items-center">
+                        <input 
+                          type="color" 
+                          value={brushFillColor === 'transparent' ? '#ffffff' : brushFillColor} 
+                          onChange={(e) => onBrushFillColorChange(e.target.value)} 
+                          onClick={(e) => e.stopPropagation()}
+                          disabled={brushFillColor === 'transparent'}
+                          className="w-full"
+                          style={{ opacity: brushFillColor === 'transparent' ? 0.3 : 1 }}
+                        />
+                        <button 
+                          className={`btn btn-xs ${brushFillColor === 'transparent' ? 'btn-primary' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); onBrushFillColorChange(brushFillColor === 'transparent' ? '#ffffff' : 'transparent'); }}
+                          style={{ fontSize: '0.65rem', whiteSpace: 'nowrap' }}
+                        >
+                          {brushFillColor === 'transparent' ? 'Fill Off' : 'Fill On'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
              </div>
           )}
         </div>
@@ -550,143 +634,6 @@ export default function ControlPanel({
         {displayLayers.length === 0 && (
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem' }}>
             No layers yet. Add text or insert an image!
-          </div>
-        )}
-      </div>
-
-      <hr style={{ borderColor: 'var(--border-color)', margin: '1rem 0' }} />
-
-      {/* Draw Section */}
-      <div>
-        <button 
-          className={`btn w-full ${showDraw ? 'btn-primary' : ''}`}
-          onClick={() => {
-            setShowDraw(!showDraw);
-            if (!showDraw) {
-              setShowAdvanced(false);
-              setShowResolution(false);
-            }
-          }}
-          style={{ justifyContent: 'space-between', padding: '0.75rem 1rem' }}
-        >
-          <span className="flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
-              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
-              <path d="M2 2l7.586 7.586"></path>
-              <circle cx="11" cy="11" r="2"></circle>
-            </svg>
-            Draw & Shapes
-          </span>
-          <svg 
-            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
-            style={{ transform: showDraw ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}
-          >
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
-        </button>
-
-        {showDraw && (
-          <div className="advanced-panel" style={{ marginTop: '0.5rem' }}>
-            <div className="flex-col gap-4">
-              {/* Tool Selector */}
-              <div className="flex flex-wrap gap-2">
-                <button 
-                  className={`btn btn-icon ${activeDrawTool === 'pen' ? 'btn-primary' : ''}`} 
-                  onClick={() => onSetActiveDrawTool(activeDrawTool === 'pen' ? null : 'pen')}
-                  title="Pen Tool"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path></svg>
-                </button>
-                <button 
-                  className={`btn btn-icon ${activeDrawTool === 'square' ? 'btn-primary' : ''}`} 
-                  onClick={() => onSetActiveDrawTool(activeDrawTool === 'square' ? null : 'square')}
-                  title="Square Tool"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="5" y="5" width="14" height="14" rx="1" ry="1" />
-                  </svg>
-                </button>
-                <button 
-                  className={`btn btn-icon ${activeDrawTool === 'rect' ? 'btn-primary' : ''}`} 
-                  onClick={() => onSetActiveDrawTool(activeDrawTool === 'rect' ? null : 'rect')}
-                  title="Rectangle Tool"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="6" width="18" height="12" rx="1" ry="1" />
-                  </svg>
-                </button>
-                <button 
-                  className={`btn btn-icon ${activeDrawTool === 'circle' ? 'btn-primary' : ''}`} 
-                  onClick={() => onSetActiveDrawTool(activeDrawTool === 'circle' ? null : 'circle')}
-                  title="Circle Tool"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="9" />
-                  </svg>
-                </button>
-                <button 
-                  className={`btn btn-icon ${activeDrawTool === 'ellipse' ? 'btn-primary' : ''}`} 
-                  onClick={() => onSetActiveDrawTool(activeDrawTool === 'ellipse' ? null : 'ellipse')}
-                  title="Ellipse Tool"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <ellipse cx="12" cy="12" rx="9" ry="6" />
-                  </svg>
-                </button>
-                <button 
-                  className={`btn btn-icon ${activeDrawTool === 'triangle' ? 'btn-primary' : ''}`} 
-                  onClick={() => onSetActiveDrawTool(activeDrawTool === 'triangle' ? null : 'triangle')}
-                  title="Triangle Tool"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 4L4 18h16L12 4z" />
-                  </svg>
-                </button>
-                <button className="btn btn-icon btn-danger" onClick={() => onClearDrawLines()} title="Clear Active Drawing Layer">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                </button>
-              </div>
-
-              {activeDrawTool && (
-                <div className="flex-col gap-3 p-3 glass-panel-dark" style={{ borderRadius: '8px' }}>
-                  <div className="flex justify-between items-center">
-                    <label className="label" style={{ marginBottom: 0 }}>Stroke Width [{brushSize}px]</label>
-                    <input type="range" min="1" max="300" value={brushSize} onChange={(e) => onBrushSizeChange(Number(e.target.value))} style={{ width: '120px' }} />
-                  </div>
-                  
-                  <div className="flex gap-4">
-                    <div className="flex-col w-full">
-                      <label className="label">Stroke Color</label>
-                      <input type="color" value={brushColor} onChange={(e) => onBrushColorChange(e.target.value)} className="w-full" />
-                    </div>
-                    <div className="flex-col w-full">
-                      <label className="label">Fill Color</label>
-                      <div className="flex gap-2 items-center">
-                        <input 
-                          type="color" 
-                          value={brushFillColor === 'transparent' ? '#ffffff' : brushFillColor} 
-                          onChange={(e) => onBrushFillColorChange(e.target.value)} 
-                          disabled={brushFillColor === 'transparent'}
-                          className="w-full"
-                          style={{ opacity: brushFillColor === 'transparent' ? 0.3 : 1 }}
-                        />
-                        <button 
-                          className={`btn btn-xs ${brushFillColor === 'transparent' ? 'btn-primary' : ''}`}
-                          onClick={() => onBrushFillColorChange(brushFillColor === 'transparent' ? '#ffffff' : 'transparent')}
-                          style={{ fontSize: '0.65rem', whiteSpace: 'nowrap' }}
-                        >
-                          {brushFillColor === 'transparent' ? 'Fill Off' : 'Fill On'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--accent-color)', textAlign: 'center' }}>
-                    Drawing into {selectedDrawingLayerId ? "selected layer" : "a new layer"}
-                  </p>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>
