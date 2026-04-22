@@ -7,45 +7,52 @@ import useImage from 'use-image';
 const SepiaFilter = (imageData) => {
   const data = imageData.data;
   for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], g = data[i+1], b = data[i+2];
-    data[i]   = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
-    data[i+1] = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
-    data[i+2] = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    data[i] = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
+    data[i + 1] = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
+    data[i + 2] = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
   }
 };
 
 const WarmFilter = (imageData) => {
   const data = imageData.data;
   for (let i = 0; i < data.length; i += 4) {
-    data[i]   = Math.min(255, data[i] + 25);
-    data[i+1] = Math.min(255, data[i+1] + 10);
-    data[i+2] = Math.max(0, data[i+2] - 20);
+    data[i] = Math.min(255, data[i] + 25);
+    data[i + 1] = Math.min(255, data[i + 1] + 10);
+    data[i + 2] = Math.max(0, data[i + 2] - 20);
   }
 };
 
 const CoolFilter = (imageData) => {
   const data = imageData.data;
   for (let i = 0; i < data.length; i += 4) {
-    data[i]   = Math.max(0, data[i] - 15);
-    data[i+1] = Math.min(255, data[i+1] + 5);
-    data[i+2] = Math.min(255, data[i+2] + 30);
+    data[i] = Math.max(0, data[i] - 15);
+    data[i + 1] = Math.min(255, data[i + 1] + 5);
+    data[i + 2] = Math.min(255, data[i + 2] + 30);
   }
 };
 
-export const FILTER_CONFIGS = {
-  none:       { filters: [], props: {} },
-  grayscale:  { filters: [Konva.Filters.Grayscale], props: {} },
-  sepia:      { filters: [SepiaFilter], props: {} },
-  vivid:      { filters: [Konva.Filters.Contrast, Konva.Filters.Brighten], props: { contrast: 40, brightness: 0.05 } },
-  warm:       { filters: [WarmFilter], props: {} },
-  cool:       { filters: [CoolFilter], props: {} },
-  invert:     { filters: [Konva.Filters.Invert], props: {} },
+const FILTER_CONFIGS = {
+  none: { filters: [], props: {} },
+  grayscale: { filters: [Konva.Filters.Grayscale], props: {} },
+  sepia: { filters: [SepiaFilter], props: {} },
+  vivid: { filters: [Konva.Filters.Contrast, Konva.Filters.Brighten], props: { contrast: 40, brightness: 0.05 } },
+  warm: { filters: [WarmFilter], props: {} },
+  cool: { filters: [CoolFilter], props: {} },
+  invert: { filters: [Konva.Filters.Invert], props: {} },
 };
 
 // === Text Node ===
 const TextNode = ({ shapeProps, isSelected, onSelect, onChange, canvasWidth, canvasHeight, scale }) => {
   const shapeRef = useRef();
   const trRef = useRef();
+
+  useEffect(() => {
+    if (isSelected && shapeRef.current && trRef.current) {
+      trRef.current.nodes([shapeRef.current]);
+      trRef.current.getLayer()?.batchDraw();
+    }
+  }, [isSelected]);
 
   return (
     <React.Fragment>
@@ -75,7 +82,7 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange, canvasWidth, can
         onDragEnd={(e) => {
           onChange({ ...shapeProps, x: e.target.x(), y: e.target.y() });
         }}
-        onTransformEnd={(e) => {
+        onTransformEnd={() => {
           const node = shapeRef.current;
           const scaleX = node.scaleX();
           const scaleY = node.scaleY();
@@ -94,7 +101,6 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange, canvasWidth, can
       {isSelected && (
         <Transformer
           ref={trRef}
-          nodes={isSelected && shapeRef.current ? [shapeRef.current] : []}
           boundBoxFunc={(oldBox, newBox) => {
             const maxW = canvasWidth * scale;
             const maxH = canvasHeight * scale;
@@ -116,10 +122,17 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange, canvasWidth, can
 };
 
 // === Inserted Image Node ===
-const InsertedImageNode = ({ imageData, isSelected, onSelect, onChange, canvasWidth, canvasHeight, scale }) => {
+const InsertedImageNode = ({ imageData, isSelected, onSelect, onChange }) => {
   const shapeRef = useRef();
   const trRef = useRef();
   const [img] = useImage(imageData.src, 'anonymous');
+
+  useEffect(() => {
+    if (isSelected && shapeRef.current && trRef.current) {
+      trRef.current.nodes([shapeRef.current]);
+      trRef.current.getLayer()?.batchDraw();
+    }
+  }, [isSelected]);
 
   if (!img) return null;
 
@@ -137,7 +150,7 @@ const InsertedImageNode = ({ imageData, isSelected, onSelect, onChange, canvasWi
         onClick={onSelect}
         onTap={onSelect}
         onDragEnd={(e) => { onChange({ x: e.target.x(), y: e.target.y() }); }}
-        onTransformEnd={(e) => {
+        onTransformEnd={() => {
           const node = shapeRef.current;
           const scaleX = node.scaleX();
           const scaleY = node.scaleY();
@@ -154,7 +167,6 @@ const InsertedImageNode = ({ imageData, isSelected, onSelect, onChange, canvasWi
       {isSelected && (
         <Transformer
           ref={trRef}
-          nodes={isSelected && shapeRef.current ? [shapeRef.current] : []}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']}
           boundBoxFunc={(oldBox, newBox) => {
             if (newBox.width < 5 || newBox.height < 5) return oldBox;
@@ -181,7 +193,7 @@ const DrawingLayerNode = ({ lines }) => {
               tension={0.5}
               lineCap="round"
               lineJoin="round"
-              globalCompositeOperation="source-over"
+              globalCompositeOperation={item.globalCompositeOperation || 'source-over'}
               listening={false}
             />
           );
@@ -271,7 +283,7 @@ const CropOverlay = ({ canvasWidth, canvasHeight, cropRect, onCropRectChange, sc
                 y: Math.max(0, Math.min(node.y(), canvasHeight - cropRect.height)),
               });
             }}
-            onTransformEnd={(e) => {
+            onTransformEnd={() => {
               const node = cropRectRef.current;
               const sx = node.scaleX(); const sy = node.scaleY();
               node.scaleX(1); node.scaleY(1);
@@ -300,6 +312,7 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
   const [startPos, setStartPos] = useState(null);
   const [previewItem, setPreviewItem] = useState(null);
   const [currentPath, setCurrentPath] = useState([]);
+  const isFreehandTool = activeDrawTool === 'pen' || activeDrawTool === 'eraser';
 
   const getCanvasPos = (e) => {
     const stage = e.target.getStage();
@@ -311,8 +324,8 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
     const pos = getCanvasPos(e);
     setIsCurrentlyDrawing(true);
     setStartPos(pos);
-    
-    if (activeDrawTool === 'pen') {
+
+    if (isFreehandTool) {
       setCurrentPath([pos.x, pos.y]);
     } else {
       setPreviewItem({
@@ -335,12 +348,12 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
     if (!isCurrentlyDrawing || !startPos) return;
     const pos = getCanvasPos(e);
 
-    if (activeDrawTool === 'pen') {
+    if (isFreehandTool) {
       setCurrentPath(prev => [...prev, pos.x, pos.y]);
     } else {
       const dx = pos.x - startPos.x;
       const dy = pos.y - startPos.y;
-      
+
       let newItem = { ...previewItem };
 
       if (activeDrawTool === 'rect' || activeDrawTool === 'square') {
@@ -362,15 +375,21 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
         const rotation = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
         newItem = { ...newItem, x: startPos.x, y: startPos.y, radius, rotation };
       }
-      
+
       setPreviewItem(newItem);
     }
   };
 
   const handleMouseUp = () => {
-    if (activeDrawTool === 'pen') {
+    if (isFreehandTool) {
       if (currentPath.length >= 2) {
-        onDrawEnd({ type: 'path', points: currentPath, stroke: brushColor, strokeWidth: brushSize });
+        onDrawEnd({
+          type: 'path',
+          points: currentPath,
+          stroke: activeDrawTool === 'eraser' ? '#000000' : brushColor,
+          strokeWidth: brushSize,
+          globalCompositeOperation: activeDrawTool === 'eraser' ? 'destination-out' : 'source-over',
+        });
       }
       setCurrentPath([]);
     } else if (previewItem) {
@@ -383,14 +402,15 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
 
   return (
     <React.Fragment>
-      {activeDrawTool === 'pen' && currentPath.length >= 2 && (
+      {isFreehandTool && currentPath.length >= 2 && (
         <Line
           points={currentPath}
-          stroke={brushColor}
+          stroke={activeDrawTool === 'eraser' ? '#000000' : brushColor}
           strokeWidth={brushSize}
           tension={0.5}
           lineCap="round"
           lineJoin="round"
+          globalCompositeOperation={activeDrawTool === 'eraser' ? 'destination-out' : 'source-over'}
           listening={false}
         />
       )}
@@ -417,7 +437,7 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
 };
 
 // === Main Canvas Editor ===
-export default function CanvasEditor({ 
+export default function CanvasEditor({
   imageUrl, texts, selectedTextId, onSelectLayer, onUpdateText, stageRef, onImageDrop,
   isCropping, cropRect, onCropRectChange,
   insertedImages = [], selectedInsertedImageId, onUpdateInsertedImage,
@@ -491,8 +511,8 @@ export default function CanvasEditor({
   };
 
   return (
-    <div 
-      className="canvas-area glass-panel" ref={containerRef} 
+    <div
+      className="canvas-area glass-panel" ref={containerRef}
       style={{ width: '100%', height: '100%' }}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer?.files[0]; if (file && onImageDrop) onImageDrop(file); }}
@@ -506,13 +526,13 @@ export default function CanvasEditor({
         style={{ cursor: isCropping || activeDrawTool ? 'crosshair' : 'default' }}
       >
         <Layer>
-          <Rect 
-            x={0} y={0} 
-            width={currentWidth} height={currentHeight} 
-            fill={backgroundColor} 
-            name="bg" 
+          <Rect
+            x={0} y={0}
+            width={currentWidth} height={currentHeight}
+            fill={backgroundColor}
+            name="bg"
           />
-          
+
           {image && (
             <KonvaImage
               ref={bgImageRef}
@@ -524,59 +544,84 @@ export default function CanvasEditor({
               {...filterConfig.props}
             />
           )}
+        </Layer>
 
-          {layerOrder.map((layer) => {
-            if (layer.type === 'text') {
-              const text = texts.find(t => t.id === layer.id);
-              if (!text) return null;
-              return (
-                <TextNode key={text.id} shapeProps={text}
+        {layerOrder.map((layer) => {
+          if (layer.type === 'text') {
+            const text = texts.find(t => t.id === layer.id);
+            if (!text) return null;
+            return (
+              <Layer key={`text-${text.id}`}>
+                <TextNode
+                  shapeProps={text}
                   isSelected={text.id === selectedTextId}
                   onSelect={() => onSelectLayer(text.id, 'text')}
                   onChange={(newAttrs) => onUpdateText(text.id, newAttrs)}
-                  canvasWidth={currentWidth} canvasHeight={currentHeight} scale={scale}
+                  canvasWidth={currentWidth}
+                  canvasHeight={currentHeight}
+                  scale={scale}
                 />
-              );
-            } else if (layer.type === 'image') {
-              const imgData = insertedImages.find(img => img.id === layer.id);
-              if (!imgData) return null;
-              return (
-                <InsertedImageNode key={imgData.id} imageData={imgData}
+              </Layer>
+            );
+          }
+
+          if (layer.type === 'image') {
+            const imgData = insertedImages.find(img => img.id === layer.id);
+            if (!imgData) return null;
+            return (
+              <Layer key={`image-${imgData.id}`}>
+                <InsertedImageNode
+                  imageData={imgData}
                   isSelected={imgData.id === selectedInsertedImageId}
                   onSelect={() => onSelectLayer(imgData.id, 'image')}
                   onChange={(newAttrs) => { if (onUpdateInsertedImage) onUpdateInsertedImage(imgData.id, newAttrs); }}
-                  canvasWidth={currentWidth} canvasHeight={currentHeight} scale={scale}
+                  canvasWidth={currentWidth}
+                  canvasHeight={currentHeight}
+                  scale={scale}
                 />
-              );
-            } else if (layer.type === 'drawing') {
-              const drawLayer = drawingLayers.find(dl => dl.id === layer.id);
-              if (!drawLayer) return null;
-              return (
-                <DrawingLayerNode 
-                  key={drawLayer.id} 
-                  lines={drawLayer.lines} 
-                />
-              );
-            }
-            return null;
-          })}
+              </Layer>
+            );
+          }
 
-          {activeDrawTool && (
+          if (layer.type === 'drawing') {
+            const drawLayer = drawingLayers.find(dl => dl.id === layer.id);
+            if (!drawLayer) return null;
+            return (
+              <Layer key={`drawing-${drawLayer.id}`}>
+                <DrawingLayerNode lines={drawLayer.lines} />
+              </Layer>
+            );
+          }
+
+          return null;
+        })}
+
+        {activeDrawTool && (
+          <Layer>
             <DrawOverlay
-              canvasWidth={currentWidth} canvasHeight={currentHeight}
-              brushColor={brushColor} brushSize={brushSize} brushFillColor={brushFillColor} 
-              scale={scale} activeDrawTool={activeDrawTool}
+              canvasWidth={currentWidth}
+              canvasHeight={currentHeight}
+              brushColor={brushColor}
+              brushSize={brushSize}
+              brushFillColor={brushFillColor}
+              scale={scale}
+              activeDrawTool={activeDrawTool}
               onDrawEnd={handleDrawEnd}
             />
-          )}
+          </Layer>
+        )}
 
-          {isCropping && (
+        {isCropping && (
+          <Layer>
             <CropOverlay
-              canvasWidth={currentWidth} canvasHeight={currentHeight}
-              cropRect={cropRect} onCropRectChange={onCropRectChange} scale={scale}
+              canvasWidth={currentWidth}
+              canvasHeight={currentHeight}
+              cropRect={cropRect}
+              onCropRectChange={onCropRectChange}
+              scale={scale}
             />
-          )}
-        </Layer>
+          </Layer>
+        )}
       </Stage>
     </div>
   );

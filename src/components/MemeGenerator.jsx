@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import CanvasEditor from './CanvasEditor';
 import ControlPanel from './ControlPanel';
@@ -27,7 +27,7 @@ export default function MemeGenerator() {
   // Draw tool state
   const [drawingLayers, setDrawingLayers] = useState([]); // [{ id, lines: [] }]
   const [selectedDrawingLayerId, setSelectedDrawingLayerId] = useState(null);
-  const [activeDrawTool, setActiveDrawTool] = useState(null); // 'pen', 'square', 'rect', 'circle', 'ellipse', 'triangle'
+  const [activeDrawTool, setActiveDrawTool] = useState(null); // 'pen', 'eraser', 'square', 'rect', 'circle', 'ellipse', 'triangle'
   const [brushSize, setBrushSize] = useState(5);
   const [brushColor, setBrushColor] = useState('#ff0000');
   const [brushFillColor, setBrushFillColor] = useState('transparent');
@@ -66,11 +66,11 @@ export default function MemeGenerator() {
     setTexts(prev => prev.map(t => t.id === id ? { ...t, ...newProps } : t));
   };
 
-  const handleDeleteText = (id) => {
+  const handleDeleteText = useCallback((id) => {
     setTexts(prev => prev.filter(t => t.id !== id));
     setLayerOrder(prev => prev.filter(l => l.id !== id));
     if (selectedTextId === id) setSelectedTextId(null);
-  };
+  }, [selectedTextId]);
 
   const processImageFile = (file) => {
     if (file && file.type.startsWith('image/')) {
@@ -302,11 +302,11 @@ export default function MemeGenerator() {
     setInsertedImages(prev => prev.map(img => img.id === id ? { ...img, ...newProps } : img));
   };
 
-  const handleDeleteInsertedImage = (id) => {
+  const handleDeleteInsertedImage = useCallback((id) => {
     setInsertedImages(prev => prev.filter(img => img.id !== id));
     setLayerOrder(prev => prev.filter(l => l.id !== id));
     if (selectedInsertedImageId === id) setSelectedInsertedImageId(null);
-  };
+  }, [selectedInsertedImageId]);
 
   const handleDuplicateLayer = (id, type) => {
     if (type === 'text') {
@@ -483,18 +483,11 @@ export default function MemeGenerator() {
     })));
   };
 
-  // === CLEAR DRAW LINES ===
-  const handleClearDrawLines = (id) => {
-    const targetId = id || selectedDrawingLayerId;
-    if (!targetId) return;
-    setDrawingLayers(prev => prev.map(dl => dl.id === targetId ? { ...dl, lines: [] } : dl));
-  };
-
-  const handleDeleteDrawingLayer = (id) => {
+  const handleDeleteDrawingLayer = useCallback((id) => {
     setDrawingLayers(prev => prev.filter(dl => dl.id !== id));
     setLayerOrder(prev => prev.filter(l => l.id !== id));
     if (selectedDrawingLayerId === id) setSelectedDrawingLayerId(null);
-  };
+  }, [selectedDrawingLayerId]);
 
   // === KEYBOARD SHORTCUTS ===
   useEffect(() => {
@@ -521,7 +514,14 @@ export default function MemeGenerator() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTextId, selectedInsertedImageId, handleDeleteText, handleDeleteInsertedImage]);
+  }, [
+    selectedTextId,
+    selectedInsertedImageId,
+    selectedDrawingLayerId,
+    handleDeleteText,
+    handleDeleteInsertedImage,
+    handleDeleteDrawingLayer,
+  ]);
 
   return (
     <div className="app-container">
@@ -602,7 +602,6 @@ export default function MemeGenerator() {
         onBrushColorChange={setBrushColor}
         brushFillColor={brushFillColor}
         onBrushFillColorChange={setBrushFillColor}
-        onClearDrawLines={handleClearDrawLines}
         // Rotate
         onRotate={handleRotate}
         // Filter

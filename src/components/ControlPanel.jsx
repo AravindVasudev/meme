@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 
-const EMOJIS = ['😀','😂','😍','😎','😢','😡','👍','🎉','🔥','💯','😁','😘','🤔','😭','💀','🤡','👽','💩','✨','👀'];
+const EMOJIS = ['😀', '😂', '😍', '😎', '😢', '😡', '👍', '🎉', '🔥', '💯', '😁', '😘', '🤔', '😭', '💀', '🤡', '👽', '💩', '✨', '👀'];
 
-export default function ControlPanel({ 
-  texts, 
-  selectedTextId, 
-  onSelectText, 
-  onImageUpload, 
-  onAddText, 
-  onUpdateText, 
+export default function ControlPanel({
+  texts,
+  selectedTextId,
+  onImageUpload,
+  onAddText,
+  onUpdateText,
   onDeleteText,
   onDownload,
   maxFontSize = 200,
@@ -22,7 +21,6 @@ export default function ControlPanel({
   // Layer management
   insertedImages = [],
   selectedInsertedImageId,
-  onSelectInsertedImage,
   onDeleteInsertedImage,
   onDuplicateLayer,
   layerOrder = [],
@@ -53,13 +51,13 @@ export default function ControlPanel({
   onBrushColorChange,
   brushFillColor,
   onBrushFillColorChange,
-  onClearDrawLines,
 }) {
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showResolution, setShowResolution] = useState(false);
   const [activeAdvancedTool, setActiveAdvancedTool] = useState(null);
-  
+  const pictureInputRef = useRef(null);
+
   // Space/padding state
   const [spacePosition, setSpacePosition] = useState('bottom');
   const [spacePercent, setSpacePercent] = useState(20);
@@ -79,6 +77,15 @@ export default function ControlPanel({
     if (activeDrawTool) onSetActiveDrawTool(null);
   };
 
+  const handlePictureButtonClick = () => {
+    pictureInputRef.current?.click();
+  };
+
+  const handlePictureUpload = (e) => {
+    onInsertImage(e);
+    e.target.value = '';
+  };
+
   // Display layers top-to-bottom (reverse of layerOrder array since last = top)
   const displayLayers = [...layerOrder].reverse();
 
@@ -93,56 +100,56 @@ export default function ControlPanel({
       const textIndex = texts.indexOf(item);
 
       return (
-        <div 
-          key={item.id} 
+        <div
+          key={item.id}
           className={`layer-card flex-col gap-2 p-4 ${isSelected ? 'layer-card-selected' : ''}`}
           onClick={() => { if (!isSelected) onSelectLayer(item.id, 'text'); }}
         >
           {/* Layer header row */}
           <div className="flex gap-2 items-center">
             <span className="layer-type-badge layer-type-text" title="Text Layer">T</span>
-            <input 
-              type="text" 
-              className="input-control" 
-              value={item.text} 
+            <input
+              type="text"
+              className="input-control"
+              value={item.text}
               onChange={(e) => onUpdateText(item.id, { text: e.target.value })}
               placeholder={`Text Layer ${textIndex + 1}`}
               style={{ flex: 1 }}
               onClick={(e) => e.stopPropagation()}
             />
-            <button 
-              className="btn btn-icon" 
+            <button
+              className="btn btn-icon"
               onClick={(e) => { e.stopPropagation(); setShowEmojiPickerFor(showEmojiPickerFor === item.id ? null : item.id); }}
               title="Insert Emoji"
               style={{ fontSize: '0.9rem' }}
             >
               😀
             </button>
-            <button 
-              className="btn btn-icon btn-danger" 
+            <button
+              className="btn btn-icon btn-danger"
               onClick={(e) => { e.stopPropagation(); onDeleteText(item.id); }}
               title="Delete Layer"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
-            <button 
-              className="btn btn-icon" 
+            <button
+              className="btn btn-icon"
               onClick={(e) => { e.stopPropagation(); onDuplicateLayer(item.id, 'text'); }}
               title="Duplicate Layer"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             </button>
             <div className="layer-reorder-btns">
-              <button 
-                className="btn btn-icon layer-move-btn" 
+              <button
+                className="btn btn-icon layer-move-btn"
                 onClick={(e) => { e.stopPropagation(); onMoveLayer(item.id, 'up'); }}
                 disabled={isTopmost}
                 title="Move Up (Front)"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
               </button>
-              <button 
-                className="btn btn-icon layer-move-btn" 
+              <button
+                className="btn btn-icon layer-move-btn"
                 onClick={(e) => { e.stopPropagation(); onMoveLayer(item.id, 'down'); }}
                 disabled={isBottommost}
                 title="Move Down (Back)"
@@ -190,9 +197,9 @@ export default function ControlPanel({
               {/* Font Type */}
               <div className="flex-col w-full">
                 <label className="label">Font Family</label>
-                <select 
-                  className="input-control" 
-                  value={item.fontFamily || 'Impact, Arial'} 
+                <select
+                  className="input-control"
+                  value={item.fontFamily || 'Impact, Arial'}
                   onChange={(e) => onUpdateText(item.id, { fontFamily: e.target.value })}
                 >
                   <option value="Impact, Arial">Impact</option>
@@ -203,23 +210,23 @@ export default function ControlPanel({
                   <option value="Verdana, sans-serif">Verdana</option>
                 </select>
               </div>
-              
+
               {/* Colors */}
               <div className="flex gap-4">
                 <div className="flex-col w-full">
                   <label className="label">Fill Color</label>
-                  <input 
-                    type="color" 
-                    value={item.fill} 
+                  <input
+                    type="color"
+                    value={item.fill}
                     onChange={(e) => onUpdateText(item.id, { fill: e.target.value })}
                     className="w-full"
                   />
                 </div>
                 <div className="flex-col w-full">
                   <label className="label">Stroke Color</label>
-                  <input 
-                    type="color" 
-                    value={item.stroke} 
+                  <input
+                    type="color"
+                    value={item.stroke}
                     onChange={(e) => onUpdateText(item.id, { stroke: e.target.value })}
                     className="w-full"
                   />
@@ -232,11 +239,11 @@ export default function ControlPanel({
                   <div className="flex justify-between">
                     <label className="label">Font Size [{Math.round(item.fontSize)}px]</label>
                   </div>
-                  <input 
-                    type="range" 
-                    min="10" 
-                    max={maxFontSize} 
-                    value={item.fontSize} 
+                  <input
+                    type="range"
+                    min="10"
+                    max={maxFontSize}
+                    value={item.fontSize}
                     onChange={(e) => onUpdateText(item.id, { fontSize: Number(e.target.value) })}
                   />
                 </div>
@@ -245,11 +252,11 @@ export default function ControlPanel({
                   <div className="flex justify-between">
                     <label className="label">Outline Width [{Math.round(item.strokeWidth)}px]</label>
                   </div>
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max={Math.max(10, Math.floor(maxFontSize * 0.1))} 
-                    value={item.strokeWidth} 
+                  <input
+                    type="range"
+                    min="0"
+                    max={Math.max(10, Math.floor(maxFontSize * 0.1))}
+                    value={item.strokeWidth}
                     onChange={(e) => onUpdateText(item.id, { strokeWidth: Number(e.target.value) })}
                   />
                 </div>
@@ -258,10 +265,10 @@ export default function ControlPanel({
                   <div className="flex justify-between">
                     <label className="label">Opacity [{Math.round(item.opacity * 100)}%]</label>
                   </div>
-                  <input 
-                    type="range" 
+                  <input
+                    type="range"
                     min="0" max="1" step="0.05"
-                    value={item.opacity} 
+                    value={item.opacity}
                     onChange={(e) => onUpdateText(item.id, { opacity: Number(e.target.value) })}
                   />
                 </div>
@@ -269,7 +276,7 @@ export default function ControlPanel({
 
               {/* Toggles */}
               <div className="flex gap-2">
-                <button 
+                <button
                   className={`btn w-full ${item.fontStyle.includes('bold') ? 'btn-primary' : ''}`}
                   onClick={() => {
                     const isBold = item.fontStyle.includes('bold');
@@ -280,7 +287,7 @@ export default function ControlPanel({
                 >
                   B
                 </button>
-                <button 
+                <button
                   className={`btn w-full ${item.fontStyle.includes('italic') ? 'btn-primary' : ''}`}
                   onClick={() => {
                     const isItalic = item.fontStyle.includes('italic');
@@ -305,7 +312,7 @@ export default function ControlPanel({
       const displayName = imgName.length > 18 ? imgName.substring(0, 15) + '…' : imgName;
 
       return (
-        <div 
+        <div
           key={imgData.id}
           className={`layer-card flex-col gap-2 p-4 ${isSelected ? 'layer-card-selected' : ''}`}
           onClick={() => { if (!isSelected) onSelectLayer(imgData.id, 'image'); }}
@@ -318,38 +325,38 @@ export default function ControlPanel({
                 <polyline points="21 15 16 10 5 21"></polyline>
               </svg>
             </span>
-            <img 
-              src={imgData.src} 
+            <img
+              src={imgData.src}
               alt={displayName}
               className="layer-image-thumb"
             />
             <span className="layer-image-name" title={imgName}>{displayName}</span>
-            <button 
-              className="btn btn-icon btn-danger" 
+            <button
+              className="btn btn-icon btn-danger"
               onClick={(e) => { e.stopPropagation(); onDeleteInsertedImage(imgData.id); }}
               title="Delete Layer"
               style={{ marginLeft: 'auto' }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
-            <button 
-              className="btn btn-icon" 
+            <button
+              className="btn btn-icon"
               onClick={(e) => { e.stopPropagation(); onDuplicateLayer(imgData.id, 'image'); }}
               title="Duplicate Layer"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             </button>
             <div className="layer-reorder-btns">
-              <button 
-                className="btn btn-icon layer-move-btn" 
+              <button
+                className="btn btn-icon layer-move-btn"
                 onClick={(e) => { e.stopPropagation(); onMoveLayer(imgData.id, 'up'); }}
                 disabled={isTopmost}
                 title="Move Up (Front)"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
               </button>
-              <button 
-                className="btn btn-icon layer-move-btn" 
+              <button
+                className="btn btn-icon layer-move-btn"
                 onClick={(e) => { e.stopPropagation(); onMoveLayer(imgData.id, 'down'); }}
                 disabled={isBottommost}
                 title="Move Down (Back)"
@@ -367,7 +374,7 @@ export default function ControlPanel({
       const layerIndex = drawingLayers.indexOf(drawData);
 
       return (
-        <div 
+        <div
           key={drawData.id}
           className={`layer-card flex-col gap-2 p-4 ${isSelected ? 'layer-card-selected' : ''}`}
           onClick={() => { if (!isSelected) onSelectLayer(drawData.id, 'drawing'); }}
@@ -380,33 +387,33 @@ export default function ControlPanel({
               </svg>
             </span>
             <span className="layer-image-name">Drawing Layer {layerIndex + 1}</span>
-            
-            <button 
-              className="btn btn-icon btn-danger" 
+
+            <button
+              className="btn btn-icon btn-danger"
               onClick={(e) => { e.stopPropagation(); onDeleteDrawingLayer(drawData.id); }}
               title="Delete Layer"
               style={{ marginLeft: 'auto' }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
-            <button 
-              className="btn btn-icon" 
+            <button
+              className="btn btn-icon"
               onClick={(e) => { e.stopPropagation(); onDuplicateLayer(drawData.id, 'drawing'); }}
               title="Duplicate Layer"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             </button>
             <div className="layer-reorder-btns">
-              <button 
-                className="btn btn-icon layer-move-btn" 
+              <button
+                className="btn btn-icon layer-move-btn"
                 onClick={(e) => { e.stopPropagation(); onMoveLayer(drawData.id, 'up'); }}
                 disabled={isTopmost}
                 title="Move Up (Front)"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
               </button>
-              <button 
-                className="btn btn-icon layer-move-btn" 
+              <button
+                className="btn btn-icon layer-move-btn"
                 onClick={(e) => { e.stopPropagation(); onMoveLayer(drawData.id, 'down'); }}
                 disabled={isBottommost}
                 title="Move Down (Back)"
@@ -416,102 +423,109 @@ export default function ControlPanel({
             </div>
           </div>
           {isSelected && (
-             <div className="flex-col gap-4 p-3 glass-panel-dark" style={{ marginTop: '0.5rem', borderRadius: '8px' }}>
-                {/* Tool Selector */}
-                <div className="flex flex-wrap gap-2">
-                  <button 
-                    className={`btn btn-icon ${activeDrawTool === 'pen' ? 'btn-primary' : ''}`} 
-                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'pen' ? null : 'pen'); }}
-                    title="Pen Tool"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path></svg>
-                  </button>
-                  <button 
-                    className={`btn btn-icon ${activeDrawTool === 'square' ? 'btn-primary' : ''}`} 
-                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'square' ? null : 'square'); }}
-                    title="Square Tool"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="5" y="5" width="14" height="14" rx="1" ry="1" />
-                    </svg>
-                  </button>
-                  <button 
-                    className={`btn btn-icon ${activeDrawTool === 'rect' ? 'btn-primary' : ''}`} 
-                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'rect' ? null : 'rect'); }}
-                    title="Rectangle Tool"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="6" width="18" height="12" rx="1" ry="1" />
-                    </svg>
-                  </button>
-                  <button 
-                    className={`btn btn-icon ${activeDrawTool === 'circle' ? 'btn-primary' : ''}`} 
-                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'circle' ? null : 'circle'); }}
-                    title="Circle Tool"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="9" />
-                    </svg>
-                  </button>
-                  <button 
-                    className={`btn btn-icon ${activeDrawTool === 'ellipse' ? 'btn-primary' : ''}`} 
-                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'ellipse' ? null : 'ellipse'); }}
-                    title="Ellipse Tool"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <ellipse cx="12" cy="12" rx="9" ry="6" />
-                    </svg>
-                  </button>
-                  <button 
-                    className={`btn btn-icon ${activeDrawTool === 'triangle' ? 'btn-primary' : ''}`} 
-                    onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'triangle' ? null : 'triangle'); }}
-                    title="Triangle Tool"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 4L4 18h16L12 4z" />
-                    </svg>
-                  </button>
-                  <button className="btn btn-icon btn-danger" onClick={(e) => { e.stopPropagation(); onClearDrawLines(drawData.id); }} title="Clear Layer Content">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                  </button>
+            <div className="flex-col gap-4 p-3 glass-panel-dark" style={{ marginTop: '0.5rem', borderRadius: '8px' }}>
+              {/* Tool Selector */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className={`btn btn-icon ${activeDrawTool === 'pen' ? 'btn-primary' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'pen' ? null : 'pen'); }}
+                  title="Pen Tool"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path></svg>
+                </button>
+                <button
+                  className={`btn btn-icon ${activeDrawTool === 'square' ? 'btn-primary' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'square' ? null : 'square'); }}
+                  title="Square Tool"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="5" y="5" width="14" height="14" rx="1" ry="1" />
+                  </svg>
+                </button>
+                <button
+                  className={`btn btn-icon ${activeDrawTool === 'rect' ? 'btn-primary' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'rect' ? null : 'rect'); }}
+                  title="Rectangle Tool"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="6" width="18" height="12" rx="1" ry="1" />
+                  </svg>
+                </button>
+                <button
+                  className={`btn btn-icon ${activeDrawTool === 'circle' ? 'btn-primary' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'circle' ? null : 'circle'); }}
+                  title="Circle Tool"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                  </svg>
+                </button>
+                <button
+                  className={`btn btn-icon ${activeDrawTool === 'ellipse' ? 'btn-primary' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'ellipse' ? null : 'ellipse'); }}
+                  title="Ellipse Tool"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <ellipse cx="12" cy="12" rx="9" ry="6" />
+                  </svg>
+                </button>
+                <button
+                  className={`btn btn-icon ${activeDrawTool === 'triangle' ? 'btn-primary' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'triangle' ? null : 'triangle'); }}
+                  title="Triangle Tool"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 4L4 18h16L12 4z" />
+                  </svg>
+                </button>
+                <button
+                  className={`btn btn-icon ${activeDrawTool === 'eraser' ? 'btn-primary' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); onSetActiveDrawTool(activeDrawTool === 'eraser' ? null : 'eraser'); }}
+                  title="Eraser Tool"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16.24 3.56 20.44 7.76a2 2 0 0 1 0 2.83l-9.9 9.9a2 2 0 0 1-1.41.59H5.5a2 2 0 0 1-1.41-.59l-1.03-1.03a2 2 0 0 1 0-2.83l9.9-9.9a2 2 0 0 1 2.83 0z"></path>
+                    <path d="M8 13l3 3"></path>
+                  </svg>
+                </button>
+              </div>
+
+              {/* Styling Options */}
+              <div className="flex-col gap-3">
+                <div className="flex justify-between items-center">
+                  <label className="label" style={{ marginBottom: 0 }}>Stroke Width [{brushSize}px]</label>
+                  <input type="range" min="1" max="300" value={brushSize} onChange={(e) => onBrushSizeChange(Number(e.target.value))} onClick={(e) => e.stopPropagation()} style={{ width: '120px' }} />
                 </div>
 
-                {/* Styling Options */}
-                <div className="flex-col gap-3">
-                  <div className="flex justify-between items-center">
-                    <label className="label" style={{ marginBottom: 0 }}>Stroke Width [{brushSize}px]</label>
-                    <input type="range" min="1" max="300" value={brushSize} onChange={(e) => onBrushSizeChange(Number(e.target.value))} onClick={(e) => e.stopPropagation()} style={{ width: '120px' }} />
+                <div className="flex gap-4">
+                  <div className="flex-col w-full">
+                    <label className="label">Stroke Color</label>
+                    <input type="color" value={brushColor} onChange={(e) => onBrushColorChange(e.target.value)} onClick={(e) => e.stopPropagation()} className="w-full" />
                   </div>
-                  
-                  <div className="flex gap-4">
-                    <div className="flex-col w-full">
-                      <label className="label">Stroke Color</label>
-                      <input type="color" value={brushColor} onChange={(e) => onBrushColorChange(e.target.value)} onClick={(e) => e.stopPropagation()} className="w-full" />
-                    </div>
-                    <div className="flex-col w-full">
-                      <label className="label">Fill Color</label>
-                      <div className="flex gap-2 items-center">
-                        <input 
-                          type="color" 
-                          value={brushFillColor === 'transparent' ? '#ffffff' : brushFillColor} 
-                          onChange={(e) => onBrushFillColorChange(e.target.value)} 
-                          onClick={(e) => e.stopPropagation()}
-                          disabled={brushFillColor === 'transparent'}
-                          className="w-full"
-                          style={{ opacity: brushFillColor === 'transparent' ? 0.3 : 1 }}
-                        />
-                        <button 
-                          className={`btn btn-xs ${brushFillColor === 'transparent' ? 'btn-primary' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); onBrushFillColorChange(brushFillColor === 'transparent' ? '#ffffff' : 'transparent'); }}
-                          style={{ fontSize: '0.65rem', whiteSpace: 'nowrap' }}
-                        >
-                          {brushFillColor === 'transparent' ? 'Fill Off' : 'Fill On'}
-                        </button>
-                      </div>
+                  <div className="flex-col w-full">
+                    <label className="label">Fill Color</label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="color"
+                        value={brushFillColor === 'transparent' ? '#ffffff' : brushFillColor}
+                        onChange={(e) => onBrushFillColorChange(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        disabled={brushFillColor === 'transparent'}
+                        className="w-full"
+                        style={{ opacity: brushFillColor === 'transparent' ? 0.3 : 1 }}
+                      />
+                      <button
+                        className={`btn btn-xs ${brushFillColor === 'transparent' ? 'btn-primary' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); onBrushFillColorChange(brushFillColor === 'transparent' ? '#ffffff' : 'transparent'); }}
+                        style={{ fontSize: '0.65rem', whiteSpace: 'nowrap' }}
+                      >
+                        {brushFillColor === 'transparent' ? 'Fill Off' : 'Fill On'}
+                      </button>
                     </div>
                   </div>
                 </div>
-             </div>
+              </div>
+            </div>
           )}
         </div>
       );
@@ -522,25 +536,25 @@ export default function ControlPanel({
 
   return (
     <div className="control-panel flex-col gap-4 p-6 glass-panel">
-      
+
       {/* Top Actions */}
       <div className="flex flex-col gap-4">
         <div>
           <label className="label">Upload Image</label>
-          <input 
-            type="file" 
-            accept="image/*" 
-            onChange={onImageUpload} 
-            className="input-control" 
+          <input
+            type="file"
+            accept="image/*"
+            onChange={onImageUpload}
+            className="input-control"
             style={{ padding: '0.4rem' }}
           />
         </div>
         <div>
           <label className="label">Background Color</label>
           <div className="flex items-center gap-3">
-            <input 
-              type="color" 
-              value={backgroundColor} 
+            <input
+              type="color"
+              value={backgroundColor}
               onChange={(e) => onBackgroundColorChange(e.target.value)}
               className="w-full h-10 cursor-pointer"
               title="Change canvas background color"
@@ -554,7 +568,7 @@ export default function ControlPanel({
 
       {!hasBackgroundImage && (
         <div style={{ marginTop: '0.5rem' }}>
-          <button 
+          <button
             className={`btn w-full ${showResolution ? 'btn-primary' : ''}`}
             onClick={() => setShowResolution(!showResolution)}
             style={{ justifyContent: 'space-between', padding: '0.75rem 1rem' }}
@@ -569,8 +583,8 @@ export default function ControlPanel({
               </svg>
               Canvas Resolution
             </span>
-            <svg 
-              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
               style={{ transform: showResolution ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}
             >
               <polyline points="6 9 12 15 18 9"></polyline>
@@ -582,25 +596,25 @@ export default function ControlPanel({
               <div className="flex gap-2 items-center" style={{ marginBottom: '1rem' }}>
                 <div className="flex-col w-full">
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Width</span>
-                  <input 
-                    type="number" 
-                    className="input-control" 
-                    value={canvasDim.width} 
+                  <input
+                    type="number"
+                    className="input-control"
+                    value={canvasDim.width}
                     onChange={(e) => onCanvasDimChange(prev => ({ ...prev, width: Number(e.target.value) }))}
                   />
                 </div>
                 <span style={{ marginTop: '1.2rem', color: 'var(--text-secondary)' }}>×</span>
                 <div className="flex-col w-full">
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Height</span>
-                  <input 
-                    type="number" 
-                    className="input-control" 
-                    value={canvasDim.height} 
+                  <input
+                    type="number"
+                    className="input-control"
+                    value={canvasDim.height}
                     onChange={(e) => onCanvasDimChange(prev => ({ ...prev, height: Number(e.target.value) }))}
                   />
                 </div>
               </div>
-              
+
               <div className="flex gap-2 flex-wrap">
                 <button className="btn btn-sm" onClick={() => onCanvasDimChange({ width: 600, height: 600 })}>1:1 Square</button>
                 <button className="btn btn-sm" onClick={() => onCanvasDimChange({ width: 600, height: 900 })}>2:3 Story</button>
@@ -614,7 +628,7 @@ export default function ControlPanel({
 
       <div className="flex justify-between items-center">
         <h3 style={{ fontSize: '1.2rem' }}>Layers</h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button className="btn" onClick={onAddDrawingLayer} title="Add New Drawing Layer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
@@ -622,6 +636,21 @@ export default function ControlPanel({
             </svg>
             + Draw
           </button>
+          <button className="btn" onClick={handlePictureButtonClick} title="Add New Picture">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+            + Picture
+          </button>
+          <input
+            ref={pictureInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handlePictureUpload}
+          />
           <button className="btn" onClick={onAddText}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             + Text
@@ -633,7 +662,7 @@ export default function ControlPanel({
         {displayLayers.map((layer, idx) => renderLayerCard(layer, idx))}
         {displayLayers.length === 0 && (
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem' }}>
-            No layers yet. Add text or insert an image!
+            No layers yet. Add text, picture, or drawing layers!
           </div>
         )}
       </div>
@@ -642,7 +671,7 @@ export default function ControlPanel({
 
       {/* Advanced Section */}
       <div>
-        <button 
+        <button
           className={`btn w-full ${showAdvanced ? 'btn-primary' : ''}`}
           onClick={() => {
             setShowAdvanced(!showAdvanced);
@@ -661,8 +690,8 @@ export default function ControlPanel({
             </svg>
             Advanced
           </span>
-          <svg 
-            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" 
+          <svg
+            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
             style={{ transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}
           >
             <polyline points="6 9 12 15 18 9"></polyline>
@@ -671,7 +700,7 @@ export default function ControlPanel({
 
         {showAdvanced && (
           <div className="advanced-panel">
-            {/* Tool buttons — 2 rows of 3 */}
+            {/* Tool buttons */}
             <div className="flex-col gap-2" style={{ marginTop: '0.75rem' }}>
               <div className="flex gap-2">
                 <button
@@ -694,17 +723,6 @@ export default function ControlPanel({
                     <line x1="3" y1="15" x2="21" y2="15"></line>
                   </svg>
                   Space
-                </button>
-                <button
-                  className={`btn w-full advanced-tool-btn ${activeAdvancedTool === 'insert' ? 'btn-primary' : ''}`}
-                  onClick={() => handleToolToggle('insert')}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                    <polyline points="21 15 16 10 5 21"></polyline>
-                  </svg>
-                  Insert
                 </button>
                 <button
                   className="btn w-full advanced-tool-btn"
@@ -778,33 +796,14 @@ export default function ControlPanel({
               </div>
             )}
 
-            {/* Insert Image Panel */}
-            {activeAdvancedTool === 'insert' && (
-              <div className="advanced-tool-panel">
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-                  Select an image to add as a new layer on the canvas.
-                </p>
-                <label className="btn btn-primary w-full" style={{ cursor: 'pointer' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="17 8 12 3 7 8"></polyline>
-                    <line x1="12" y1="3" x2="12" y2="15"></line>
-                  </svg>
-                  Choose Image
-                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { onInsertImage(e); setActiveAdvancedTool(null); }} />
-                </label>
-              </div>
-            )}
-
-
             {/* Filters Panel */}
             {activeAdvancedTool === 'filter' && (
               <div className="advanced-tool-panel">
                 <div className="flex-col gap-2">
                   <label className="label">Photo Filter</label>
-                  <select 
-                    className="input-control" 
-                    value={activeFilter} 
+                  <select
+                    className="input-control"
+                    value={activeFilter}
                     onChange={(e) => onFilterChange(e.target.value)}
                   >
                     <option value="none">None</option>
