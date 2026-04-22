@@ -626,9 +626,9 @@ export default function ControlPanel({
         </div>
       )}
 
-      <div className="flex justify-between items-center">
+      <div className="flex-col gap-2">
         <h3 style={{ fontSize: '1.2rem' }}>Layers</h3>
-        <div className="flex gap-2" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
           <button className="btn" onClick={onAddDrawingLayer} title="Add New Drawing Layer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
