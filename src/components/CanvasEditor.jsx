@@ -47,12 +47,7 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange, canvasWidth, can
   const shapeRef = useRef();
   const trRef = useRef();
 
-  useEffect(() => {
-    if (isSelected && trRef.current) {
-      trRef.current.nodes([shapeRef.current]);
-      trRef.current.getLayer().batchDraw();
-    }
-  }, [isSelected]);
+  // No useEffect needed for Transformer nodes in declarative mode
 
   return (
     <React.Fragment>
@@ -101,6 +96,7 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange, canvasWidth, can
       {isSelected && (
         <Transformer
           ref={trRef}
+          nodes={isSelected && shapeRef.current ? [shapeRef.current] : []}
           boundBoxFunc={(oldBox, newBox) => {
             const maxW = canvasWidth * scale;
             const maxH = canvasHeight * scale;
@@ -127,12 +123,7 @@ const InsertedImageNode = ({ imageData, isSelected, onSelect, onChange, canvasWi
   const trRef = useRef();
   const [img] = useImage(imageData.src, 'anonymous');
 
-  useEffect(() => {
-    if (isSelected && trRef.current && shapeRef.current) {
-      trRef.current.nodes([shapeRef.current]);
-      trRef.current.getLayer().batchDraw();
-    }
-  }, [isSelected]);
+  // No useEffect needed for Transformer nodes in declarative mode
 
   if (!img) return null;
 
@@ -167,6 +158,7 @@ const InsertedImageNode = ({ imageData, isSelected, onSelect, onChange, canvasWi
       {isSelected && (
         <Transformer
           ref={trRef}
+          nodes={isSelected && shapeRef.current ? [shapeRef.current] : []}
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']}
           boundBoxFunc={(oldBox, newBox) => {
             if (newBox.width < 5 || newBox.height < 5) return oldBox;

@@ -616,7 +616,7 @@ export default function ControlPanel({
             setShowAdvanced(!showAdvanced);
             if (showAdvanced) {
               if (isCropping) onCropCancel();
-              if (isDrawingMode) onSetDrawingMode(false);
+              if (activeDrawTool) onSetActiveDrawTool(null);
               setActiveAdvancedTool(null);
             }
           }}
