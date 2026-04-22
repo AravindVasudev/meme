@@ -28,7 +28,11 @@ export default function ControlPanel({
   layerOrder = [],
   onMoveLayer,
   onSelectLayer,
+  onAddDrawingLayer,
   // Draw
+  drawingLayers = [],
+  selectedDrawingLayerId,
+  onDeleteDrawingLayer,
   // Rotate
   onRotate,
   // Filter
@@ -105,6 +109,7 @@ export default function ControlPanel({
               onChange={(e) => onUpdateText(item.id, { text: e.target.value })}
               placeholder={`Text Layer ${textIndex + 1}`}
               style={{ flex: 1 }}
+              onClick={(e) => e.stopPropagation()}
             />
             <button 
               className="btn btn-icon" 
@@ -298,7 +303,6 @@ export default function ControlPanel({
       if (!imgData) return null;
       const isSelected = imgData.id === selectedInsertedImageId;
       const imgName = imgData.name || 'Image';
-      // Truncate long filenames
       const displayName = imgName.length > 18 ? imgName.substring(0, 15) + '…' : imgName;
 
       return (
@@ -355,6 +359,76 @@ export default function ControlPanel({
               </button>
             </div>
           </div>
+        </div>
+      );
+    } else if (layer.type === 'drawing') {
+      const drawData = drawingLayers.find(dl => dl.id === layer.id);
+      if (!drawData) return null;
+      const isSelected = drawData.id === selectedDrawingLayerId;
+      const layerIndex = drawingLayers.indexOf(drawData);
+
+      return (
+        <div 
+          key={drawData.id}
+          className={`layer-card flex-col gap-2 p-4 ${isSelected ? 'layer-card-selected' : ''}`}
+          onClick={() => { if (!isSelected) onSelectLayer(drawData.id, 'drawing'); }}
+        >
+          <div className="flex gap-2 items-center">
+            <span className="layer-type-badge layer-type-draw" title="Drawing Layer">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+              </svg>
+            </span>
+            <span className="layer-image-name">Drawing Layer {layerIndex + 1}</span>
+            
+            <button 
+              className="btn btn-icon btn-danger" 
+              onClick={(e) => { e.stopPropagation(); onDeleteDrawingLayer(drawData.id); }}
+              title="Delete Layer"
+              style={{ marginLeft: 'auto' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+            <button 
+              className="btn btn-icon" 
+              onClick={(e) => { e.stopPropagation(); onDuplicateLayer(drawData.id, 'drawing'); }}
+              title="Duplicate Layer"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+            <div className="layer-reorder-btns">
+              <button 
+                className="btn btn-icon layer-move-btn" 
+                onClick={(e) => { e.stopPropagation(); onMoveLayer(drawData.id, 'up'); }}
+                disabled={isTopmost}
+                title="Move Up (Front)"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+              </button>
+              <button 
+                className="btn btn-icon layer-move-btn" 
+                onClick={(e) => { e.stopPropagation(); onMoveLayer(drawData.id, 'down'); }}
+                disabled={isBottommost}
+                title="Move Down (Back)"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+            </div>
+          </div>
+          {isSelected && (
+             <div className="flex-col gap-2" style={{ marginTop: '0.5rem' }}>
+                <button 
+                  className="btn btn-sm btn-danger w-full" 
+                  onClick={(e) => { e.stopPropagation(); onClearDrawLines(drawData.id); }}
+                >
+                  Clear Layer Content
+                </button>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                  Use the "Draw & Shapes" section below to add to this layer.
+                </p>
+             </div>
+          )}
         </div>
       );
     }
@@ -454,13 +528,21 @@ export default function ControlPanel({
         </div>
       )}
 
-      {/* Unified Layers Section */}
       <div className="flex justify-between items-center">
         <h3 style={{ fontSize: '1.2rem' }}>Layers</h3>
-        <button className="btn" onClick={onAddText}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          Add Text
-        </button>
+        <div className="flex gap-2">
+          <button className="btn" onClick={onAddDrawingLayer} title="Add New Drawing Layer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+            </svg>
+            + Draw
+          </button>
+          <button className="btn" onClick={onAddText}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            + Text
+          </button>
+        </div>
       </div>
 
       <div className="flex-col gap-2" style={{ marginTop: '0.5rem' }}>
@@ -561,7 +643,7 @@ export default function ControlPanel({
                     <path d="M12 4L4 18h16L12 4z" />
                   </svg>
                 </button>
-                <button className="btn btn-icon btn-danger" onClick={onClearDrawLines} title="Clear All Drawings">
+                <button className="btn btn-icon btn-danger" onClick={() => onClearDrawLines()} title="Clear Active Drawing Layer">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                 </button>
               </div>
@@ -570,7 +652,7 @@ export default function ControlPanel({
                 <div className="flex-col gap-3 p-3 glass-panel-dark" style={{ borderRadius: '8px' }}>
                   <div className="flex justify-between items-center">
                     <label className="label" style={{ marginBottom: 0 }}>Stroke Width [{brushSize}px]</label>
-                    <input type="range" min="1" max="50" value={brushSize} onChange={(e) => onBrushSizeChange(Number(e.target.value))} style={{ width: '100px' }} />
+                    <input type="range" min="1" max="300" value={brushSize} onChange={(e) => onBrushSizeChange(Number(e.target.value))} style={{ width: '120px' }} />
                   </div>
                   
                   <div className="flex gap-4">
@@ -599,6 +681,9 @@ export default function ControlPanel({
                       </div>
                     </div>
                   </div>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--accent-color)', textAlign: 'center' }}>
+                    Drawing into {selectedDrawingLayerId ? "selected layer" : "a new layer"}
+                  </p>
                 </div>
               )}
             </div>

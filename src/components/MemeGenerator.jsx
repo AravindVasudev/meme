@@ -25,7 +25,8 @@ export default function MemeGenerator() {
   const [layerOrder, setLayerOrder] = useState(INITIAL_LAYER_ORDER);
 
   // Draw tool state
-  const [drawLines, setDrawLines] = useState([]);
+  const [drawingLayers, setDrawingLayers] = useState([]); // [{ id, lines: [] }]
+  const [selectedDrawingLayerId, setSelectedDrawingLayerId] = useState(null);
   const [activeDrawTool, setActiveDrawTool] = useState(null); // 'pen', 'square', 'rect', 'circle', 'ellipse', 'triangle'
   const [brushSize, setBrushSize] = useState(5);
   const [brushColor, setBrushColor] = useState('#ff0000');
@@ -177,9 +178,12 @@ export default function MemeGenerator() {
     })));
 
     // Adjust draw lines
-    setDrawLines(prev => prev.map(line => ({
-      ...line,
-      points: line.points.map((val, i) => i % 2 === 0 ? val - cropRect.x : val - cropRect.y),
+    setDrawingLayers(prev => prev.map(layer => ({
+      ...layer,
+      lines: layer.lines.map(line => ({
+        ...line,
+        points: line.points.map((val, i) => i % 2 === 0 ? val - cropRect.x : val - cropRect.y),
+      }))
     })));
 
     // If there's a background image, re-render the cropped portion
@@ -229,9 +233,12 @@ export default function MemeGenerator() {
     if (yOffset > 0) {
       setTexts(prev => prev.map(t => ({ ...t, y: t.y + yOffset })));
       setInsertedImages(prev => prev.map(img => ({ ...img, y: img.y + yOffset })));
-      setDrawLines(prev => prev.map(line => ({
-        ...line,
-        points: line.points.map((val, i) => i % 2 === 1 ? val + yOffset : val),
+      setDrawingLayers(prev => prev.map(layer => ({
+        ...layer,
+        lines: layer.lines.map(line => ({
+          ...line,
+          points: line.points.map((val, i) => i % 2 === 1 ? val + yOffset : val),
+        }))
       })));
     }
 
@@ -338,6 +345,23 @@ export default function MemeGenerator() {
       });
       setSelectedInsertedImageId(newLayer.id);
       setSelectedTextId(null);
+    } else if (type === 'drawing') {
+      const original = drawingLayers.find(dl => dl.id === id);
+      if (!original) return;
+      const newLayer = {
+        ...original,
+        id: uuidv4(),
+      };
+      setDrawingLayers(prev => [...prev, newLayer]);
+      setLayerOrder(prev => {
+        const idx = prev.findIndex(l => l.id === id);
+        const newOrder = [...prev];
+        newOrder.splice(idx + 1, 0, { id: newLayer.id, type: 'drawing' });
+        return newOrder;
+      });
+      setSelectedDrawingLayerId(newLayer.id);
+      setSelectedTextId(null);
+      setSelectedInsertedImageId(null);
     }
   };
 
@@ -358,16 +382,47 @@ export default function MemeGenerator() {
     if (type === 'text') {
       setSelectedTextId(id);
       setSelectedInsertedImageId(null);
+      setSelectedDrawingLayerId(null);
     } else if (type === 'image') {
       setSelectedInsertedImageId(id);
       setSelectedTextId(null);
+      setSelectedDrawingLayerId(null);
+    } else if (type === 'drawing') {
+      setSelectedDrawingLayerId(id);
+      setSelectedTextId(null);
+      setSelectedInsertedImageId(null);
+    } else {
+      setSelectedTextId(null);
+      setSelectedInsertedImageId(null);
+      setSelectedDrawingLayerId(null);
     }
+  };
+
+  const handleAddDrawingLayer = () => {
+    const newId = uuidv4();
+    setDrawingLayers(prev => [...prev, { id: newId, lines: [] }]);
+    setLayerOrder(prev => [...prev, { id: newId, type: 'drawing' }]);
+    setSelectedDrawingLayerId(newId);
+    setSelectedTextId(null);
+    setSelectedInsertedImageId(null);
   };
 
   const handleSetDrawingMode = (tool) => {
     setActiveDrawTool(tool);
-    // Deselect other things when drawing
     if (tool) {
+      // If no drawing layer selected, or we want a fresh one, could logic here
+      // For now, if no drawing layer exists, create one
+      if (!selectedDrawingLayerId) {
+        const existingLayer = layerOrder.find(l => l.type === 'drawing');
+        if (existingLayer) {
+          setSelectedDrawingLayerId(existingLayer.id);
+        } else {
+          const newId = uuidv4();
+          setDrawingLayers(prev => [...prev, { id: newId, lines: [] }]);
+          setLayerOrder(prev => [...prev, { id: newId, type: 'drawing' }]);
+          setSelectedDrawingLayerId(newId);
+        }
+      }
       setSelectedTextId(null);
       setSelectedInsertedImageId(null);
     }
@@ -415,19 +470,30 @@ export default function MemeGenerator() {
     })));
 
     // Remap draw line points: (x,y) → (oldH-y, x)
-    setDrawLines(prev => prev.map(line => {
-      const newPoints = [];
-      for (let i = 0; i < line.points.length; i += 2) {
-        newPoints.push(oldHeight - line.points[i + 1]); // new x
-        newPoints.push(line.points[i]);                   // new y
-      }
-      return { ...line, points: newPoints };
-    }));
+    setDrawingLayers(prev => prev.map(layer => ({
+      ...layer,
+      lines: layer.lines.map(line => {
+        const newPoints = [];
+        for (let i = 0; i < line.points.length; i += 2) {
+          newPoints.push(oldHeight - line.points[i + 1]); // new x
+          newPoints.push(line.points[i]);                   // new y
+        }
+        return { ...line, points: newPoints };
+      })
+    })));
   };
 
   // === CLEAR DRAW LINES ===
-  const handleClearDrawLines = () => {
-    setDrawLines([]);
+  const handleClearDrawLines = (id) => {
+    const targetId = id || selectedDrawingLayerId;
+    if (!targetId) return;
+    setDrawingLayers(prev => prev.map(dl => dl.id === targetId ? { ...dl, lines: [] } : dl));
+  };
+
+  const handleDeleteDrawingLayer = (id) => {
+    setDrawingLayers(prev => prev.filter(dl => dl.id !== id));
+    setLayerOrder(prev => prev.filter(l => l.id !== id));
+    if (selectedDrawingLayerId === id) setSelectedDrawingLayerId(null);
   };
 
   // === KEYBOARD SHORTCUTS ===
@@ -447,6 +513,8 @@ export default function MemeGenerator() {
           handleDeleteText(selectedTextId);
         } else if (selectedInsertedImageId) {
           handleDeleteInsertedImage(selectedInsertedImageId);
+        } else if (selectedDrawingLayerId) {
+          handleDeleteDrawingLayer(selectedDrawingLayerId);
         }
       }
     };
@@ -475,8 +543,9 @@ export default function MemeGenerator() {
         // Layer ordering
         layerOrder={layerOrder}
         // Draw
-        drawLines={drawLines}
-        onDrawLinesChange={setDrawLines}
+        drawingLayers={drawingLayers}
+        selectedDrawingLayerId={selectedDrawingLayerId}
+        onUpdateDrawingLayer={(id, lines) => setDrawingLayers(prev => prev.map(dl => dl.id === id ? { ...dl, lines } : dl))}
         activeDrawTool={activeDrawTool}
         brushSize={brushSize}
         brushColor={brushColor}
@@ -520,7 +589,11 @@ export default function MemeGenerator() {
         layerOrder={layerOrder}
         onMoveLayer={handleMoveLayer}
         onSelectLayer={handleSelectLayer}
+        onAddDrawingLayer={handleAddDrawingLayer}
         // Draw
+        drawingLayers={drawingLayers}
+        selectedDrawingLayerId={selectedDrawingLayerId}
+        onDeleteDrawingLayer={handleDeleteDrawingLayer}
         activeDrawTool={activeDrawTool}
         onSetActiveDrawTool={handleSetDrawingMode}
         brushSize={brushSize}

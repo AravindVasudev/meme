@@ -47,8 +47,6 @@ const TextNode = ({ shapeProps, isSelected, onSelect, onChange, canvasWidth, can
   const shapeRef = useRef();
   const trRef = useRef();
 
-  // No useEffect needed for Transformer nodes in declarative mode
-
   return (
     <React.Fragment>
       <Text
@@ -123,8 +121,6 @@ const InsertedImageNode = ({ imageData, isSelected, onSelect, onChange, canvasWi
   const trRef = useRef();
   const [img] = useImage(imageData.src, 'anonymous');
 
-  // No useEffect needed for Transformer nodes in declarative mode
-
   if (!img) return null;
 
   return (
@@ -166,6 +162,40 @@ const InsertedImageNode = ({ imageData, isSelected, onSelect, onChange, canvasWi
           }}
         />
       )}
+    </React.Fragment>
+  );
+};
+
+// === Drawing Node ===
+const DrawingLayerNode = ({ lines }) => {
+  return (
+    <React.Fragment>
+      {lines.map((item, i) => {
+        if (item.type === 'path') {
+          return (
+            <Line
+              key={i}
+              points={item.points}
+              stroke={item.stroke}
+              strokeWidth={item.strokeWidth}
+              tension={0.5}
+              lineCap="round"
+              lineJoin="round"
+              globalCompositeOperation="source-over"
+              listening={false}
+            />
+          );
+        } else if (item.type === 'rect' || item.type === 'square') {
+          return <Rect key={i} {...item} listening={false} />;
+        } else if (item.type === 'circle') {
+          return <Circle key={i} {...item} listening={false} />;
+        } else if (item.type === 'ellipse') {
+          return <Ellipse key={i} {...item} listening={false} />;
+        } else if (item.type === 'triangle') {
+          return <RegularPolygon key={i} {...item} sides={3} listening={false} />;
+        }
+        return null;
+      })}
     </React.Fragment>
   );
 };
@@ -265,10 +295,11 @@ const CropOverlay = ({ canvasWidth, canvasHeight, cropRect, onCropRectChange, sc
 };
 
 // === Draw Overlay ===
-const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFillColor, scale, drawLines, onDrawLinesChange, activeDrawTool }) => {
+const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFillColor, scale, activeDrawTool, onDrawEnd }) => {
   const [isCurrentlyDrawing, setIsCurrentlyDrawing] = useState(false);
   const [startPos, setStartPos] = useState(null);
   const [previewItem, setPreviewItem] = useState(null);
+  const [currentPath, setCurrentPath] = useState([]);
 
   const getCanvasPos = (e) => {
     const stage = e.target.getStage();
@@ -282,7 +313,7 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
     setStartPos(pos);
     
     if (activeDrawTool === 'pen') {
-      onDrawLinesChange([...drawLines, { type: 'path', points: [pos.x, pos.y], stroke: brushColor, strokeWidth: brushSize }]);
+      setCurrentPath([pos.x, pos.y]);
     } else {
       setPreviewItem({
         type: activeDrawTool,
@@ -305,11 +336,7 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
     const pos = getCanvasPos(e);
 
     if (activeDrawTool === 'pen') {
-      const lastLine = drawLines[drawLines.length - 1];
-      onDrawLinesChange([
-        ...drawLines.slice(0, -1),
-        { ...lastLine, points: [...lastLine.points, pos.x, pos.y] },
-      ]);
+      setCurrentPath(prev => [...prev, pos.x, pos.y]);
     } else {
       const dx = pos.x - startPos.x;
       const dy = pos.y - startPos.y;
@@ -332,7 +359,6 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
         newItem = { ...newItem, x: startPos.x, y: startPos.y, radiusX: Math.abs(dx), radiusY: Math.abs(dy) };
       } else if (activeDrawTool === 'triangle') {
         const radius = Math.sqrt(dx * dx + dy * dy);
-        // Rotation for triangle to point where mouse is
         const rotation = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
         newItem = { ...newItem, x: startPos.x, y: startPos.y, radius, rotation };
       }
@@ -342,8 +368,13 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
   };
 
   const handleMouseUp = () => {
-    if (previewItem) {
-      onDrawLinesChange([...drawLines, previewItem]);
+    if (activeDrawTool === 'pen') {
+      if (currentPath.length >= 2) {
+        onDrawEnd({ type: 'path', points: currentPath, stroke: brushColor, strokeWidth: brushSize });
+      }
+      setCurrentPath([]);
+    } else if (previewItem) {
+      onDrawEnd(previewItem);
       setPreviewItem(null);
     }
     setIsCurrentlyDrawing(false);
@@ -352,7 +383,17 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
 
   return (
     <React.Fragment>
-      {/* Renderer for the item currently being drawn */}
+      {activeDrawTool === 'pen' && currentPath.length >= 2 && (
+        <Line
+          points={currentPath}
+          stroke={brushColor}
+          strokeWidth={brushSize}
+          tension={0.5}
+          lineCap="round"
+          lineJoin="round"
+          listening={false}
+        />
+      )}
       {previewItem && (
         <React.Fragment>
           {previewItem.type === 'rect' || previewItem.type === 'square' ? (
@@ -381,7 +422,8 @@ export default function CanvasEditor({
   isCropping, cropRect, onCropRectChange,
   insertedImages = [], selectedInsertedImageId, onUpdateInsertedImage,
   layerOrder = [],
-  drawLines = [], onDrawLinesChange, activeDrawTool, brushSize, brushColor, brushFillColor,
+  drawingLayers = [], selectedDrawingLayerId, onUpdateDrawingLayer,
+  activeDrawTool, brushSize, brushColor, brushFillColor,
   activeFilter = 'none', backgroundColor = '#2d2d2d', canvasDim = { width: 600, height: 400 },
 }) {
   const [image] = useImage(imageUrl, 'anonymous');
@@ -389,7 +431,6 @@ export default function CanvasEditor({
   const containerRef = useRef(null);
   const bgImageRef = useRef(null);
 
-  // Resize canvas to fit container
   useEffect(() => {
     const checkSize = () => {
       if (containerRef.current) {
@@ -401,7 +442,6 @@ export default function CanvasEditor({
     return () => window.removeEventListener('resize', checkSize);
   }, []);
 
-  // Cache background image for filters
   useEffect(() => {
     if (bgImageRef.current && image) {
       bgImageRef.current.cache();
@@ -442,6 +482,14 @@ export default function CanvasEditor({
   const filterConfig = FILTER_CONFIGS[activeFilter] || FILTER_CONFIGS.none;
   const isInteractive = !isCropping && !activeDrawTool;
 
+  const handleDrawEnd = (newItem) => {
+    if (!selectedDrawingLayerId || !onUpdateDrawingLayer) return;
+    const layer = drawingLayers.find(dl => dl.id === selectedDrawingLayerId);
+    if (layer) {
+      onUpdateDrawingLayer(selectedDrawingLayerId, [...layer.lines, newItem]);
+    }
+  };
+
   return (
     <div 
       className="canvas-area glass-panel" ref={containerRef} 
@@ -458,7 +506,6 @@ export default function CanvasEditor({
         style={{ cursor: isCropping || activeDrawTool ? 'crosshair' : 'default' }}
       >
         <Layer>
-          {/* Background Layer (Always visible, behind the image) */}
           <Rect 
             x={0} y={0} 
             width={currentWidth} height={currentHeight} 
@@ -478,7 +525,6 @@ export default function CanvasEditor({
             />
           )}
 
-          {/* Layers in order */}
           {layerOrder.map((layer) => {
             if (layer.type === 'text') {
               const text = texts.find(t => t.id === layer.id);
@@ -502,49 +548,28 @@ export default function CanvasEditor({
                   canvasWidth={currentWidth} canvasHeight={currentHeight} scale={scale}
                 />
               );
-            }
-            return null;
-          })}
-
-          {/* Draw items (always rendered) */}
-          {drawLines.map((item, i) => {
-            if (item.type === 'path') {
+            } else if (layer.type === 'drawing') {
+              const drawLayer = drawingLayers.find(dl => dl.id === layer.id);
+              if (!drawLayer) return null;
               return (
-                <Line
-                  key={i}
-                  points={item.points}
-                  stroke={item.stroke}
-                  strokeWidth={item.strokeWidth}
-                  tension={0.5}
-                  lineCap="round"
-                  lineJoin="round"
-                  globalCompositeOperation="source-over"
+                <DrawingLayerNode 
+                  key={drawLayer.id} 
+                  lines={drawLayer.lines} 
                 />
               );
-            } else if (item.type === 'rect' || item.type === 'square') {
-              return <Rect key={i} {...item} />;
-            } else if (item.type === 'circle') {
-              return <Circle key={i} {...item} />;
-            } else if (item.type === 'ellipse') {
-              return <Ellipse key={i} {...item} />;
-            } else if (item.type === 'triangle') {
-              return <RegularPolygon key={i} {...item} sides={3} />;
             }
             return null;
           })}
 
-          {/* Draw interaction overlay */}
           {activeDrawTool && (
             <DrawOverlay
               canvasWidth={currentWidth} canvasHeight={currentHeight}
               brushColor={brushColor} brushSize={brushSize} brushFillColor={brushFillColor} 
-              scale={scale} drawLines={drawLines} 
-              onDrawLinesChange={onDrawLinesChange}
-              activeDrawTool={activeDrawTool}
+              scale={scale} activeDrawTool={activeDrawTool}
+              onDrawEnd={handleDrawEnd}
             />
           )}
 
-          {/* Crop overlay */}
           {isCropping && (
             <CropOverlay
               canvasWidth={currentWidth} canvasHeight={currentHeight}
