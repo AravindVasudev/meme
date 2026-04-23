@@ -7,13 +7,26 @@ const INITIAL_TEXTS = [];
 
 // layerOrder: index 0 = bottom-most layer, last = top-most on canvas
 const INITIAL_LAYER_ORDER = [];
+const INITIAL_CANVAS_DIM = { width: 600, height: 400 };
+const INITIAL_BACKGROUND_COLOR = '#2d2d2d';
+const CANVAS_PRESETS = [
+  { label: '1:1 Square', width: 600, height: 600 },
+  { label: '2:3 Story', width: 600, height: 900 },
+  { label: '4:3 Classic', width: 800, height: 600 },
+  { label: '3:2 Photo', width: 900, height: 600 },
+];
 
 export default function MemeGenerator() {
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null);
   const [texts, setTexts] = useState(INITIAL_TEXTS);
   const [selectedTextId, setSelectedTextId] = useState(null);
-  const [canvasDim, setCanvasDim] = useState({ width: 600, height: 400 });
+  const [canvasDim, setCanvasDim] = useState(INITIAL_CANVAS_DIM);
+  const [backgroundColor, setBackgroundColor] = useState(INITIAL_BACKGROUND_COLOR);
+  const [isSetupComplete, setIsSetupComplete] = useState(false);
+  const [setupCanvasDim, setSetupCanvasDim] = useState(INITIAL_CANVAS_DIM);
+  const [setupBackgroundColor, setSetupBackgroundColor] = useState(INITIAL_BACKGROUND_COLOR);
   const stageRef = useRef(null);
+  const setupImageInputRef = useRef(null);
   
   // Advanced features state
   const [isCropping, setIsCropping] = useState(false);
@@ -36,7 +49,72 @@ export default function MemeGenerator() {
   const [activeFilter, setActiveFilter] = useState('none');
 
   // Background color state
-  const [backgroundColor, setBackgroundColor] = useState('#2d2d2d');
+  // The setup modal owns the initial choice; the editor only renders after that.
+  const applyBlankCanvasSetup = () => {
+    setCanvasDim({ ...setupCanvasDim });
+    setBackgroundColor(setupBackgroundColor);
+    setBackgroundImageUrl(null);
+    setIsSetupComplete(true);
+  };
+
+  const processImageFile = (file) => new Promise((resolve) => {
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onerror = () => resolve(false);
+      reader.onload = (event) => {
+        const url = event.target.result;
+
+        const img = new Image();
+        img.onerror = () => resolve(false);
+        img.onload = () => {
+          const newWidth = img.width;
+          const newHeight = img.height;
+
+          setCanvasDim((prevDim) => {
+            const ratioX = newWidth / prevDim.width;
+            const ratioY = newHeight / prevDim.height;
+            const scaleRatio = Math.min(ratioX, ratioY);
+
+            setTexts(prev => prev.map(t => {
+              let nW = newWidth;
+              let nX = 0;
+              // Map vertical coordinate via relative percentage
+              let yPercent = prevDim.height > 0 ? t.y / prevDim.height : 0.5;
+              let nY = yPercent * newHeight;
+              let nFontSize = t.fontSize * scaleRatio;
+
+              if (nY < 0) nY = 0;
+              // Guarantee it doesn't fall off the visual bottom frame by padding against estimated font height
+              const padding = nFontSize * 1.5;
+              if (nY > newHeight - padding) {
+                 nY = Math.max(0, newHeight - padding);
+              }
+
+              return {
+                ...t,
+                x: nX,
+                y: nY,
+                width: nW,
+                fontSize: nFontSize,
+                strokeWidth: Math.max(1, t.strokeWidth * scaleRatio),
+                align: 'center'
+              };
+            }));
+
+            return { width: newWidth, height: newHeight };
+          });
+
+          setBackgroundImageUrl(url);
+          resolve(true);
+        };
+        img.src = url;
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    resolve(false);
+  });
 
   // When adding text, place it in the center.
   const handleAddText = () => {
@@ -71,64 +149,6 @@ export default function MemeGenerator() {
     setLayerOrder(prev => prev.filter(l => l.id !== id));
     if (selectedTextId === id) setSelectedTextId(null);
   }, [selectedTextId]);
-
-  const processImageFile = (file) => {
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const url = event.target.result;
-        
-        const img = new Image();
-        img.onload = () => {
-          const newWidth = img.width;
-          const newHeight = img.height;
-          
-          setCanvasDim((prevDim) => {
-            const ratioX = newWidth / prevDim.width;
-            const ratioY = newHeight / prevDim.height;
-            const scaleRatio = Math.min(ratioX, ratioY);
-            
-            setTexts(prev => prev.map(t => {
-              let nW = newWidth;
-              let nX = 0;
-              // Map vertical coordinate via relative percentage
-              let yPercent = prevDim.height > 0 ? t.y / prevDim.height : 0.5;
-              let nY = yPercent * newHeight;
-              let nFontSize = t.fontSize * scaleRatio;
-              
-              if (nY < 0) nY = 0;
-              // Guarantee it doesn't fall off the visual bottom frame by padding against estimated font height
-              const padding = nFontSize * 1.5;
-              if (nY > newHeight - padding) {
-                 nY = Math.max(0, newHeight - padding);
-              }
-
-              return {
-                ...t,
-                x: nX,
-                y: nY,
-                width: nW,
-                fontSize: nFontSize,
-                strokeWidth: Math.max(1, t.strokeWidth * scaleRatio),
-                align: 'center'
-              };
-            }));
-            
-            return { width: newWidth, height: newHeight };
-          });
-          
-          setBackgroundImageUrl(url);
-        };
-        img.src = url;
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    processImageFile(file);
-  };
 
   const handleDownload = () => {
     if (!stageRef.current) return;
@@ -492,6 +512,7 @@ export default function MemeGenerator() {
   // === KEYBOARD SHORTCUTS ===
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (!isSetupComplete) return;
       // Don't delete if we're typing in an input or textarea
       if (
         document.activeElement.tagName === 'INPUT' || 
@@ -515,6 +536,7 @@ export default function MemeGenerator() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
+    isSetupComplete,
     selectedTextId,
     selectedInsertedImageId,
     selectedDrawingLayerId,
@@ -524,14 +546,14 @@ export default function MemeGenerator() {
   ]);
 
   return (
-    <div className="app-container">
+    <>
+      <div className={`app-container ${!isSetupComplete ? 'app-container-locked' : ''}`}>
       <CanvasEditor 
         imageUrl={backgroundImageUrl}
         texts={texts}
         selectedTextId={selectedTextId}
         onUpdateText={handleUpdateText}
         stageRef={stageRef}
-        onImageDrop={processImageFile}
         // Advanced
         isCropping={isCropping}
         cropRect={cropRect}
@@ -560,19 +582,11 @@ export default function MemeGenerator() {
         texts={texts}
         selectedTextId={selectedTextId}
         onSelectText={setSelectedTextId}
-        onImageUpload={handleImageUpload}
         onAddText={handleAddText}
         onUpdateText={handleUpdateText}
         onDeleteText={handleDeleteText}
         onDownload={handleDownload}
         maxFontSize={Math.max(200, Math.floor(canvasDim.height / 2))}
-        // Background color
-        backgroundColor={backgroundColor}
-        onBackgroundColorChange={setBackgroundColor}
-        // Resolution
-        canvasDim={canvasDim}
-        onCanvasDimChange={setCanvasDim}
-        hasBackgroundImage={!!backgroundImageUrl}
         // Advanced
         onCropStart={handleCropStart}
         onCropApply={handleCropApply}
@@ -608,6 +622,129 @@ export default function MemeGenerator() {
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
       />
-    </div>
+      </div>
+
+      {!isSetupComplete && (
+        <div className="setup-modal-overlay" role="presentation">
+          <div className="setup-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="setup-modal-title">
+            <div className="setup-modal-header">
+              <p className="setup-kicker">First step</p>
+              <h2 id="setup-modal-title">Pick your starting canvas</h2>
+              <p className="setup-modal-copy">
+                Upload a background image, or start with a blank canvas size and background color.
+                If you want to change this later, just refresh the tool.
+              </p>
+            </div>
+
+            <div className="setup-modal-grid">
+              <section className="setup-choice-card">
+                <div className="setup-choice-header">
+                  <div>
+                    <p className="setup-choice-kicker">Option 1</p>
+                    <h3>Upload an image</h3>
+                  </div>
+                </div>
+                <p className="setup-choice-copy">
+                  The canvas will match the image dimensions and use it as the background.
+                </p>
+                <input
+                  ref={setupImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const applied = await processImageFile(file);
+                    if (applied) setIsSetupComplete(true);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  className="btn btn-primary setup-action-btn"
+                  onClick={() => setupImageInputRef.current?.click()}
+                >
+                  Choose image
+                </button>
+              </section>
+
+              <section className="setup-choice-card">
+                <div className="setup-choice-header">
+                  <div>
+                    <p className="setup-choice-kicker">Option 2</p>
+                    <h3>Blank canvas</h3>
+                  </div>
+                </div>
+                <p className="setup-choice-copy">
+                  Set a resolution and background color before you start editing.
+                </p>
+
+                <div className="setup-presets">
+                  {CANVAS_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      className="btn setup-preset-btn"
+                      onClick={() => setSetupCanvasDim({ width: preset.width, height: preset.height })}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="setup-dimensions">
+                  <div className="flex-col">
+                    <label className="label">Width</label>
+                    <input
+                      type="number"
+                      min="100"
+                      className="input-control"
+                      value={setupCanvasDim.width}
+                      onChange={(e) => {
+                        const nextWidth = Math.max(100, Number(e.target.value) || 100);
+                        setSetupCanvasDim((prev) => ({ ...prev, width: nextWidth }));
+                      }}
+                    />
+                  </div>
+                  <div className="setup-dimension-separator">×</div>
+                  <div className="flex-col">
+                    <label className="label">Height</label>
+                    <input
+                      type="number"
+                      min="100"
+                      className="input-control"
+                      value={setupCanvasDim.height}
+                      onChange={(e) => {
+                        const nextHeight = Math.max(100, Number(e.target.value) || 100);
+                        setSetupCanvasDim((prev) => ({ ...prev, height: nextHeight }));
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="setup-color-row">
+                  <div className="flex-col" style={{ flex: 1 }}>
+                    <label className="label">Background Color</label>
+                    <input
+                      type="color"
+                      value={setupBackgroundColor}
+                      onChange={(e) => setSetupBackgroundColor(e.target.value)}
+                      className="setup-color-input"
+                    />
+                  </div>
+                  <div className="setup-color-value">{setupBackgroundColor.toUpperCase()}</div>
+                </div>
+
+                <button
+                  className="btn btn-primary setup-action-btn"
+                  onClick={applyBlankCanvasSetup}
+                >
+                  Start blank canvas
+                </button>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

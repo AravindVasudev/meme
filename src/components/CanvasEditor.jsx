@@ -438,7 +438,7 @@ const DrawOverlay = ({ canvasWidth, canvasHeight, brushColor, brushSize, brushFi
 
 // === Main Canvas Editor ===
 export default function CanvasEditor({
-  imageUrl, texts, selectedTextId, onSelectLayer, onUpdateText, stageRef, onImageDrop,
+  imageUrl, texts, selectedTextId, onSelectLayer, onUpdateText, stageRef,
   isCropping, cropRect, onCropRectChange,
   insertedImages = [], selectedInsertedImageId, onUpdateInsertedImage,
   layerOrder = [],
@@ -514,8 +514,6 @@ export default function CanvasEditor({
     <div
       className="canvas-area glass-panel" ref={containerRef}
       style={{ width: '100%', height: '100%' }}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer?.files[0]; if (file && onImageDrop) onImageDrop(file); }}
     >
       <Stage
         width={stageWidth} height={stageHeight}
