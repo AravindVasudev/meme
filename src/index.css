@@ -419,7 +419,38 @@ input[type="range"]::-webkit-slider-thumb:hover {
   overflow-y: auto;
 }
 
-/* Advanced Panel */
+/* Tools Panel */
+.tools-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.tools-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tools-kicker {
+  color: var(--accent-color);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.tools-section-header h3 {
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
 .advanced-panel {
   animation: advancedSlideIn 0.3s ease;
 }
@@ -599,6 +630,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   .btn {
     padding: 0.75rem 1rem;
     /* Larger touch targets for mobile */
+  }
+
+  .tools-grid {
+    grid-template-columns: 1fr;
   }
 
   .setup-modal {

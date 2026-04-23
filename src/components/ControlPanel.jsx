@@ -46,7 +46,6 @@ export default function ControlPanel({
   onBrushFillColorChange,
 }) {
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [activeAdvancedTool, setActiveAdvancedTool] = useState(null);
   const pictureInputRef = useRef(null);
 
@@ -571,154 +570,123 @@ export default function ControlPanel({
 
       <hr style={{ borderColor: 'var(--border-color)', margin: '1rem 0' }} />
 
-      {/* Advanced Section */}
-      <div>
-        <button
-          className={`btn w-full ${showAdvanced ? 'btn-primary' : ''}`}
-          onClick={() => {
-            setShowAdvanced(!showAdvanced);
-            if (showAdvanced) {
-              if (isCropping) onCropCancel();
-              if (activeDrawTool) onSetActiveDrawTool(null);
-              setActiveAdvancedTool(null);
-            }
-          }}
-          style={{ justifyContent: 'space-between', padding: '0.75rem 1rem' }}
-        >
-          <span className="flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-            Advanced
-          </span>
-          <svg
-            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            style={{ transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s ease' }}
+      <div className="tools-section">
+        <div className="tools-section-header">
+          <div>
+            <p className="tools-kicker">Editor Tools</p>
+            <h3>Tools</h3>
+          </div>
+        </div>
+
+        <div className="tools-grid">
+          <button
+            className={`btn w-full advanced-tool-btn ${activeAdvancedTool === 'crop' ? 'btn-primary' : ''}`}
+            onClick={() => handleToolToggle('crop')}
           >
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
-        </button>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path>
+              <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path>
+            </svg>
+            Crop
+          </button>
+          <button
+            className={`btn w-full advanced-tool-btn ${activeAdvancedTool === 'space' ? 'btn-primary' : ''}`}
+            onClick={() => handleToolToggle('space')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="3" y1="15" x2="21" y2="15"></line>
+            </svg>
+            Space
+          </button>
+          <button
+            className="btn w-full advanced-tool-btn"
+            onClick={onRotate}
+            title="Rotate 90° clockwise"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            Rotate
+          </button>
+          <button
+            className={`btn w-full advanced-tool-btn ${activeAdvancedTool === 'filter' ? 'btn-primary' : ''}`}
+            onClick={() => handleToolToggle('filter')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            Filters
+          </button>
+        </div>
 
-        {showAdvanced && (
-          <div className="advanced-panel">
-            {/* Tool buttons */}
-            <div className="flex-col gap-2" style={{ marginTop: '0.75rem' }}>
-              <div className="flex gap-2">
-                <button
-                  className={`btn w-full advanced-tool-btn ${activeAdvancedTool === 'crop' ? 'btn-primary' : ''}`}
-                  onClick={() => handleToolToggle('crop')}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path>
-                    <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path>
-                  </svg>
-                  Crop
-                </button>
-                <button
-                  className={`btn w-full advanced-tool-btn ${activeAdvancedTool === 'space' ? 'btn-primary' : ''}`}
-                  onClick={() => handleToolToggle('space')}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="3" y1="9" x2="21" y2="9"></line>
-                    <line x1="3" y1="15" x2="21" y2="15"></line>
-                  </svg>
-                  Space
-                </button>
-                <button
-                  className="btn w-full advanced-tool-btn"
-                  onClick={onRotate}
-                  title="Rotate 90° clockwise"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="23 4 23 10 17 10"></polyline>
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                  </svg>
-                  Rotate
-                </button>
-                <button
-                  className={`btn w-full advanced-tool-btn ${activeAdvancedTool === 'filter' ? 'btn-primary' : ''}`}
-                  onClick={() => handleToolToggle('filter')}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                  </svg>
-                  Filters
-                </button>
-              </div>
+        {activeAdvancedTool === 'crop' && (
+          <div className="advanced-tool-panel">
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+              Drag on the canvas to select the crop area, then click Apply.
+            </p>
+            <div className="flex gap-2">
+              <button className="btn btn-primary w-full" onClick={() => { onCropApply(); setActiveAdvancedTool(null); }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Apply Crop
+              </button>
+              <button className="btn w-full" onClick={() => { onCropCancel(); setActiveAdvancedTool(null); }}>
+                Cancel
+              </button>
             </div>
+          </div>
+        )}
 
-            {/* Crop Panel */}
-            {activeAdvancedTool === 'crop' && (
-              <div className="advanced-tool-panel">
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-                  Drag on the canvas to select the crop area, then click Apply.
-                </p>
-                <div className="flex gap-2">
-                  <button className="btn btn-primary w-full" onClick={() => { onCropApply(); setActiveAdvancedTool(null); }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    Apply Crop
-                  </button>
-                  <button className="btn w-full" onClick={() => { onCropCancel(); setActiveAdvancedTool(null); }}>
-                    Cancel
-                  </button>
+        {activeAdvancedTool === 'space' && (
+          <div className="advanced-tool-panel">
+            <div className="flex-col gap-4">
+              <div className="flex-col">
+                <label className="label">Position</label>
+                <select className="input-control" value={spacePosition} onChange={(e) => setSpacePosition(e.target.value)}>
+                  <option value="top">Top</option>
+                  <option value="bottom">Bottom</option>
+                  <option value="both">Both (Top & Bottom)</option>
+                </select>
+              </div>
+              <div className="flex-col">
+                <label className="label">Padding Size [{spacePercent}%]</label>
+                <input type="range" min="10" max="100" step="5" value={spacePercent} onChange={(e) => setSpacePercent(Number(e.target.value))} />
+              </div>
+              <div className="flex-col">
+                <label className="label">Background Color</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={spaceColor} onChange={(e) => setSpaceColor(e.target.value)} />
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{spaceColor}</span>
                 </div>
               </div>
-            )}
+              <button className="btn btn-primary w-full" onClick={() => { onAddSpace({ position: spacePosition, percent: spacePercent, color: spaceColor }); setActiveAdvancedTool(null); }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Apply Padding
+              </button>
+            </div>
+          </div>
+        )}
 
-            {/* Space/Padding Panel */}
-            {activeAdvancedTool === 'space' && (
-              <div className="advanced-tool-panel">
-                <div className="flex-col gap-4">
-                  <div className="flex-col">
-                    <label className="label">Position</label>
-                    <select className="input-control" value={spacePosition} onChange={(e) => setSpacePosition(e.target.value)}>
-                      <option value="top">Top</option>
-                      <option value="bottom">Bottom</option>
-                      <option value="both">Both (Top & Bottom)</option>
-                    </select>
-                  </div>
-                  <div className="flex-col">
-                    <label className="label">Padding Size [{spacePercent}%]</label>
-                    <input type="range" min="10" max="100" step="5" value={spacePercent} onChange={(e) => setSpacePercent(Number(e.target.value))} />
-                  </div>
-                  <div className="flex-col">
-                    <label className="label">Background Color</label>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={spaceColor} onChange={(e) => setSpaceColor(e.target.value)} />
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{spaceColor}</span>
-                    </div>
-                  </div>
-                  <button className="btn btn-primary w-full" onClick={() => { onAddSpace({ position: spacePosition, percent: spacePercent, color: spaceColor }); setActiveAdvancedTool(null); }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                    Apply Padding
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Filters Panel */}
-            {activeAdvancedTool === 'filter' && (
-              <div className="advanced-tool-panel">
-                <div className="flex-col gap-2">
-                  <label className="label">Photo Filter</label>
-                  <select
-                    className="input-control"
-                    value={activeFilter}
-                    onChange={(e) => onFilterChange(e.target.value)}
-                  >
-                    <option value="none">None</option>
-                    <option value="grayscale">Grayscale</option>
-                    <option value="sepia">Sepia</option>
-                    <option value="vivid">Vivid</option>
-                    <option value="warm">Warm Tone</option>
-                    <option value="cool">Cool Tone</option>
-                    <option value="invert">Invert</option>
-                  </select>
-                </div>
-              </div>
-            )}
+        {activeAdvancedTool === 'filter' && (
+          <div className="advanced-tool-panel">
+            <div className="flex-col gap-2">
+              <label className="label">Photo Filter</label>
+              <select
+                className="input-control"
+                value={activeFilter}
+                onChange={(e) => onFilterChange(e.target.value)}
+              >
+                <option value="none">None</option>
+                <option value="grayscale">Grayscale</option>
+                <option value="sepia">Sepia</option>
+                <option value="vivid">Vivid</option>
+                <option value="warm">Warm Tone</option>
+                <option value="cool">Cool Tone</option>
+                <option value="invert">Invert</option>
+              </select>
+            </div>
           </div>
         )}
       </div>
